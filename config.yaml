@@ -1,0 +1,42 @@
+failedOnly: true
+updates:
+  headerRight: 3
+  contentLeft: 2
+  show: false
+  file: /tmp/go-updates.yaml
+  check: 24h
+sysinfo:
+  headerRight: 4
+systemd:
+  headerRight: 3
+  contentRight: 1
+  units:
+    - nginx.service
+    - postgresql-12.service
+    - smb.service
+    - libvirtd.service
+    - firewalld.service
+    - zfs-automount.service
+    - zfs-mount.service
+    - check-nginx-modules.service
+    # - fictional.service
+docker:
+  headerRight: 4
+  contentRight: 1
+  ignore:
+    - code-server
+disk:
+  headerRight: 1
+  contentRight: 2
+  warn: 40
+  crit: 50
+cpu:
+  headerRight: 2
+  contentRight: 4
+  warn: 70
+  crit: 90
+zfs:
+  headerRight: 7
+  contentRight: 6
+  warn: 70
+  crit: 90
