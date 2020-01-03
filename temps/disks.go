@@ -12,11 +12,11 @@ import (
 // GetDiskTemps returns disk temperatures as reported by the hddtemp deamon
 func GetDiskTemps(warnTemp int, critTemp int, failedOnly bool) (header string, content string, err error) {
 	conn, err := net.Dial("tcp", "127.0.0.1:7634")
-	defer conn.Close()
 	if err != nil {
 		header = "Disk temp\t: " + colors.Warn("unavailable")
 		return
 	}
+	defer conn.Close()
 	message, err := bufio.NewReader(conn).ReadString('\n')
 	if len(message) == 0 {
 		header = "Disk temp\t: " + colors.Err("failed")

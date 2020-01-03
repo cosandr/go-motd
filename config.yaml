@@ -3,7 +3,7 @@ updates:
   headerRight: 3
   contentLeft: 2
   show: false
-  file: /tmp/go-updates.yaml
+  file: /tmp/go-check-updates.yaml
   check: 24h
 sysinfo:
   headerRight: 4

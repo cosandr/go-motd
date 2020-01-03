@@ -18,6 +18,8 @@ import (
 	"sync"
 )
 
+var defaultCfgPath string = "./config.yaml"
+
 type conf struct {
 	FailedOnly bool `yaml:"failedOnly"`
 	Updates UpdatesType
@@ -228,7 +230,7 @@ func main() {
 	var timing bool
 	var startMain time.Time
 	// Parse arguments
-	var path = flag.String("cfg", "./config.yaml", "Path to config.yml file")
+	var path = flag.String("cfg", defaultCfgPath, "Path to config.yml file")
 	flag.BoolVar(&timing, "timing", false, "Enable timing")
 	flag.Parse()
 	if timing { startMain = time.Now() }
