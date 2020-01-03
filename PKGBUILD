@@ -3,12 +3,15 @@
 # shellcheck shell=bash
 
 pkgname=go-motd-git
+_pkgname="${pkgname%-git}"
 pkgver=f07595b
 pkgrel=1
 pkgdesc="Dynamic MOTD written in Go"
 arch=("x86_64")
 url="https://github.com/cosandr/go-motd"
 license=("MIT")
+provides=("${_pkgname}")
+conflicts=("${_pkgname}")
 optdepends=(
     'zfs-utils: ZFS pool status'
     'docker: Docker container status'
@@ -18,8 +21,6 @@ optdepends=(
 makedepends=("git" "go")
 source=("git+$url")
 md5sums=("SKIP")
-
-_pkgname=go-motd
 
 _config_path="/etc/${_pkgname}/config.yaml"
 
