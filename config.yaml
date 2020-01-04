@@ -10,6 +10,7 @@ sysinfo:
 systemd:
   header: [0, 3]
   content: [2, 1]
+  hideExt: true
   units:
     - nginx.service
     - postgresql-12.service

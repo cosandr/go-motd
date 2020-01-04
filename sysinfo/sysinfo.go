@@ -135,16 +135,20 @@ func Get(ret *string, c *mt.Common) {
 }
 
 func getSysInfo() (header string) {
-	// Fetch all the things
-	var info = map[string]string{
-		"Distro": getDistroName(),
-		"Kernel": getKernel(),
-		"Uptime": getUptime(),
-		"Load": getLoadAvg(),
-		"RAM": getMemoryInfo(),
+	type entry struct {
+		name string
+		content string
 	}
-	for name, val := range info {
-		header += fmt.Sprintf("%s: %s\n", mt.Wrap(name, padL, padR), val)
+	// Fetch all the things
+	var info = [...]entry{
+		{"Distro", getDistroName()},
+		{"Kernel", getKernel()},
+		{"Uptime", getUptime()},
+		{"Load", getLoadAvg()},
+		{"RAM", getMemoryInfo()},
+	}
+	for _, e := range info {
+		header += fmt.Sprintf("%s: %s\n", mt.Wrap(e.name, padL, padR), e.content)
 	}
 	return
 }

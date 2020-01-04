@@ -7,6 +7,7 @@ import (
 	mt "github.com/cosandr/go-motd/types"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -18,6 +19,7 @@ const (
 type Conf struct {
 	mt.Common `yaml:",inline"`
 	Units []string `yaml:"units"`
+	HideExt bool `yaml:"hideExt"`
 }
 
 // getConn returns new dbus connection
@@ -34,7 +36,7 @@ func Get(ret *string, c *Conf) {
 	// Get new dbus connection
 	con := getConn()
 	defer con.Close()
-	header, content, _ := getServiceStatus(con, c.Units, *c.FailedOnly)
+	header, content, _ := getServiceStatus(con, c.Units, *c.FailedOnly, c.HideExt)
 	// Pad header
 	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
 	header = p.Do()
@@ -49,7 +51,7 @@ func Get(ret *string, c *Conf) {
 }
 
 // getServiceStatus get service properties
-func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool) (header string, content string, err error) {
+func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt bool) (header string, content string, err error) {
 	if len(units) == 0 {
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Systemd", padL, padR), colors.Warn("unconfigured"))
 		return
@@ -85,20 +87,26 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool) (header s
 		var stat = unitProps[unit]
 		// Skip if we have no stats
 		if len(stat) == 0 { continue }
+		wrapped := mt.Wrap(unit, padL, padR)
+		if hideExt {
+			// Remove .service or .timer
+			wrapped = strings.Replace(wrapped, ".service", "", 1)
+			wrapped = strings.Replace(wrapped, ".timer", "", 1)
+		}
 		// No such unit file
 		if stat["LoadState"] != "loaded" {
-			failedUnits[unit] = fmt.Sprintf("%s: %s\n", mt.Wrap(unit, padL, padR), colors.Err(stat["LoadState"]))
+			failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Err(stat["LoadState"]))
 		} else {
 			// Service running
 			if stat["ActiveState"] == "active" {
-				goodUnits[unit] = fmt.Sprintf("%s: %s\n", mt.Wrap(unit, padL, padR), colors.Good(stat["ActiveState"]))
+				goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Good(stat["ActiveState"]))
 			} else {
 				// Not running but existed sucessfully
 				if stat["ExecMainStatus"] == "0" {
-					goodUnits[unit] = fmt.Sprintf("%s: %s\n", mt.Wrap(unit, padL, padR), colors.Good(stat["Result"]))
+					goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Good(stat["Result"]))
 				// Not running and failed
 				} else {
-					failedUnits[unit] = fmt.Sprintf("%s: %s\n", mt.Wrap(unit, padL, padR), colors.Err(stat["ActiveState"]))
+					failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Err(stat["ActiveState"]))
 				}
 			} 
 		}
