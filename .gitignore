@@ -1,1 +1,4 @@
 go-motd
+test
+.vscode
+*.log

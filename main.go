@@ -1,244 +1,160 @@
 package main
 
 import (
-	"github.com/cosandr/go-motd/systemd"
-	"github.com/cosandr/go-motd/sysinfo"
-	"github.com/cosandr/go-motd/docker"
-	"github.com/cosandr/go-motd/temps"
-	"github.com/cosandr/go-motd/zfs"
-	"github.com/cosandr/go-motd/updates"
-	"time"
-	"fmt"
 	"flag"
-	"io/ioutil"
+	"fmt"
+	"github.com/cosandr/go-motd/docker"
+	"github.com/cosandr/go-motd/sysinfo"
+	"github.com/cosandr/go-motd/systemd"
+	"github.com/cosandr/go-motd/temps"
+	mt "github.com/cosandr/go-motd/types"
+	"github.com/cosandr/go-motd/updates"
+	"github.com/cosandr/go-motd/zfs"
 	"gopkg.in/yaml.v2"
-	"bytes"
-	"strings"
-	"text/tabwriter"
+	"io/ioutil"
 	"sync"
+	"time"
 )
 
 var defaultCfgPath string = "./config.yaml"
 
-type conf struct {
+// Conf is the global config struct, defines YAML file
+type Conf struct {
 	FailedOnly bool `yaml:"failedOnly"`
-	Updates UpdatesType
-	SysInfo CommonT
-	Systemd SystemdType
-	Docker DockerType
-	Disk PadWithWarn
-	CPU PadWithWarn
-	ZFS PadWithWarn
+	CPU mt.CommonWithWarn
+	Disk mt.CommonWithWarn
+	Docker docker.Conf
+	SysInfo mt.Common
+	Systemd systemd.Conf
+	Updates updates.Conf
+	ZFS mt.CommonWithWarn
 }
 
-// UpdatesType extends CommonT with updates specific settings
-type UpdatesType struct {
-	CommonT `yaml:",inline"`
-	Show bool `yaml:"show"`
-	File string `yaml:"file"`
-	Check time.Duration `yaml:"check"`
-}
-
-// SystemdType extends CommonT with a list of units
-type SystemdType struct {
-	CommonT `yaml:",inline"`
-	Units []string `yaml:"units"`
-}
-
-// DockerType extends CommonT with a list of containers
-type DockerType struct {
-	CommonT `yaml:",inline"`
-	Ignore []string `yaml:"ignore"`
-}
-
-// PadWithWarn extends CommonT with warning/critical values
-type PadWithWarn struct {
-	CommonT `yaml:",inline"`
-	Warn int `yaml:"warn"`
-	Crit int `yaml:"crit"`
-}
-
-// CommonT is the common type for all modules
-type CommonT struct {
-	FailedOnly bool `yaml:"failedOnly"`
-	HeadR int `yaml:"headerRight"`
-	HeadL int `yaml:"headerLeft"`
-	ContR int `yaml:"contentRight"`
-	ContL int `yaml:"contentLeft"`
-}
-
-func readCfg(c *conf, path *string) (*conf, error) {
-	yamlFile, err := ioutil.ReadFile(*path)
+func readCfg(path string) (*Conf, error) {
+	var c *Conf
+	yamlFile, err := ioutil.ReadFile(path)
 	if err != nil {
-		return defaultCfg(c)
-		// return nil, fmt.Errorf("Config file error: %v ", err)
+		return NewConf(), fmt.Errorf("Config file error: %v ", err)
 	}
-	err = yaml.Unmarshal(yamlFile, c)
+	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
-		return defaultCfg(c)
-		// return nil, fmt.Errorf("Cannot parse %s: %v", *path, err)
+		return NewConf(), fmt.Errorf("Cannot parse %s: %v", path, err)
 	}
 	return c, nil
 }
 
-// defaultCfg generates an empty config struct
-func defaultCfg(c *conf) (*conf, error) {
-	var data = `
-updates:
-  file: /tmp/go-updates.yaml
-  check: 24h
-disk:
-  warn: 40
-  crit: 50
-cpu:
-  warn: 70
-  crit: 90
-zfs:
-  warn: 70
-  crit: 90
-`
-	yaml.Unmarshal([]byte(data), c)
-	return c, nil
-}
-
-func getSystemD(ret *string, c conf, wg *sync.WaitGroup, timing bool) {
+func getSystemD(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
-	var buf bytes.Buffer
-	systemdConn := systemd.GetConn()
-	defer systemd.CloseConn(systemdConn)
-	systemdHeader, systemdContent, _ := systemd.GetServiceStatus(systemdConn, c.Systemd.Units, c.FailedOnly)
-	// Pad header
-	w := tabwriter.NewWriter(&buf, 0, 0, c.Systemd.HeadR, ' ', 0)
-	fmt.Fprint(w, systemdHeader)
-	w.Flush()
-	// Pad services
-	w = tabwriter.NewWriter(&buf, 0, 0, c.Systemd.ContR, ' ', 0)
-	fmt.Fprint(w, systemdContent)
-	w.Flush()
-	*ret = strings.TrimSuffix(buf.String(), "\n")
+	// Check for failedOnly override
+	if c.Systemd.FailedOnly == nil {
+		c.Systemd.FailedOnly = &c.FailedOnly
+	}
+	systemd.Get(ret, &c.Systemd)
 	if timing { fmt.Printf("Systemd in: %s\n", time.Since(start).String()) }
 	wg.Done()
 }
 
-func getDocker(ret *string, c conf, wg *sync.WaitGroup, timing bool) {
+func getDocker(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
-	var buf bytes.Buffer
-	header, content, _ := docker.CheckContainers(c.Docker.Ignore, c.FailedOnly)
-	// Pad header
-	w := tabwriter.NewWriter(&buf, 0, 0, c.Docker.HeadR, ' ', 0)
-	fmt.Fprint(w, header)
-	w.Flush()
-	// Pad containers
-	w = tabwriter.NewWriter(&buf, 0, 0, c.Docker.ContR, ' ', 0)
-	fmt.Fprint(w, content)
-	w.Flush()
-	*ret = strings.TrimSuffix(buf.String(), "\n")
+	// Check for failedOnly override
+	if c.Docker.FailedOnly == nil {
+		c.Docker.FailedOnly = &c.FailedOnly
+	}
+	docker.Get(ret, &c.Docker)
 	if timing { fmt.Printf("Docker in: %s\n", time.Since(start).String()) }
 	wg.Done()
 }
 
-func getSysInfo(ret *string, c conf, wg *sync.WaitGroup, timing bool) {
+func getSysInfo(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
-	var buf bytes.Buffer
-	var content = sysinfo.GetSysInfo()
-	w := tabwriter.NewWriter(&buf, 0, 0, c.SysInfo.HeadR, ' ', 0)
-	fmt.Fprint(w, content)
-	w.Flush()
-	*ret = strings.TrimSuffix(buf.String(), "\n")
+	sysinfo.Get(ret, &c.SysInfo)
 	if timing { fmt.Printf("Sysinfo in: %s\n", time.Since(start).String()) }
 	wg.Done()
 }
 
-func getDiskTemp(ret *string, c conf, wg *sync.WaitGroup, timing bool) {
+func getDiskTemp(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
-	var buf bytes.Buffer
-	header, content, _ := temps.GetDiskTemps(c.Disk.Warn, c.Disk.Crit, c.FailedOnly)
-	// Pad header
-	w := tabwriter.NewWriter(&buf, 0, 0, c.Disk.HeadR, ' ', 0)
-	fmt.Fprint(w, header)
-	w.Flush()
-	// Pad containers
-	w = tabwriter.NewWriter(&buf, 0, 0, c.Disk.ContR, ' ', 0)
-	fmt.Fprint(w, content)
-	w.Flush()
-	*ret = strings.TrimSuffix(buf.String(), "\n")
+	// Check for failedOnly override
+	if c.Disk.FailedOnly == nil {
+		c.Disk.FailedOnly = &c.FailedOnly
+	}
+	temps.GetDiskTemps(ret, &c.Disk)
 	if timing { fmt.Printf("Disk temp in: %s\n", time.Since(start).String()) }
 	wg.Done()
 }
 
-func getCPUTemp(ret *string, c conf, wg *sync.WaitGroup, timing bool) {
+func getCPUTemp(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
-	var buf bytes.Buffer
-	header, content, _ := temps.GetCPUTemp(c.CPU.Warn, c.CPU.Crit, c.FailedOnly)
-	// Pad header
-	w := tabwriter.NewWriter(&buf, 0, 0, c.CPU.HeadR, ' ', 0)
-	fmt.Fprint(w, header)
-	w.Flush()
-	// Pad containers
-	w = tabwriter.NewWriter(&buf, 0, 0, c.CPU.ContR, ' ', 0)
-	fmt.Fprint(w, content)
-	w.Flush()
-	*ret = strings.TrimSuffix(buf.String(), "\n")
+	// Check for failedOnly override
+	if c.CPU.FailedOnly == nil {
+		c.CPU.FailedOnly = &c.FailedOnly
+	}
+	temps.GetCPUTemp(ret, &c.CPU)
 	if timing { fmt.Printf("CPU temp in: %s\n", time.Since(start).String()) }
 	wg.Done()
 }
 
-func getZFS(ret *string, c conf, wg *sync.WaitGroup, timing bool) {
+func getZFS(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
-	var buf bytes.Buffer
-	header, content, _ := zfs.GetPoolStatus(c.ZFS.Warn, c.ZFS.Crit, c.FailedOnly)
-	// Pad header
-	w := tabwriter.NewWriter(&buf, 0, 0, c.ZFS.HeadR, ' ', 0)
-	fmt.Fprint(w, header)
-	w.Flush()
-	// Pad containers
-	w = tabwriter.NewWriter(&buf, 0, 0, c.ZFS.ContR, ' ', 0)
-	fmt.Fprint(w, content)
-	w.Flush()
-	*ret = strings.TrimSuffix(buf.String(), "\n")
+	// Check for failedOnly override
+	if c.ZFS.FailedOnly == nil {
+		c.ZFS.FailedOnly = &c.FailedOnly
+	}
+	zfs.Get(ret, &c.ZFS)
 	if timing { fmt.Printf("ZFS in: %s\n", time.Since(start).String()) }
 	wg.Done()
 }
 
-func getUpdates(ret *string, c conf, wg *sync.WaitGroup, timing bool) {
+func getUpdates(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
-	var buf bytes.Buffer
-	header, content, _ := updates.Get(c.Updates.File, c.Updates.Check)
-	// Pad header
-	w := tabwriter.NewWriter(&buf, 0, 0, c.Updates.HeadR, ' ', 0)
-	fmt.Fprint(w, header)
-	w.Flush()
-	if c.Updates.Show {
-		// Pad content
-		w = tabwriter.NewWriter(&buf, 0, 0, c.Updates.ContL, ' ', 0)
-		fmt.Fprint(w, content)
-		w.Flush()
-	}	
-	*ret = strings.TrimSuffix(buf.String(), "\n")
+	// Check for failedOnly override
+	if c.Updates.Show == nil {
+		c.Updates.Show = &c.FailedOnly
+	}
+	updates.Get(ret, &c.Updates)
 	if timing { fmt.Printf("Updates in: %s\n", time.Since(start).String()) }
 	wg.Done()
 }
 
+func debugDumpConfig(c *Conf) {
+	d, err := yaml.Marshal(c)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		return
+	}
+	fmt.Printf("Config dump:\n%s\n\n", string(d))
+}
+
+func checkCfgLen(m string, c *mt.Common) error {
+	if len(c.Header) < 2 {
+		return fmt.Errorf("Header pad array in %s too short", m)
+	}
+	if len(c.Content) < 2 {
+		return fmt.Errorf("Content pad array in %s too short", m)
+	}
+	return nil
+}
+
 func main() {
 	var timing bool
+	var path string
 	var startMain time.Time
 	// Parse arguments
-	var path = flag.String("cfg", defaultCfgPath, "Path to config.yml file")
+	flag.StringVar(&path, "cfg", defaultCfgPath, "Path to config.yml file")
 	flag.BoolVar(&timing, "timing", false, "Enable timing")
 	flag.Parse()
 	if timing { startMain = time.Now() }
 	// Read config file
-	var c conf
-	_, err := readCfg(&c, path)
+	c, err := readCfg(path)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 
 	var wg sync.WaitGroup
@@ -246,37 +162,37 @@ func main() {
 	// System info
 	var sysInfoStr string
 	wg.Add(1)
-	go getSysInfo(&sysInfoStr, c, &wg, timing)
+	go getSysInfo(&sysInfoStr, *c, &wg, timing)
 
 	// Updates status
 	var updatesStr string
 	wg.Add(1)
-	go getUpdates(&updatesStr, c, &wg, timing)
+	go getUpdates(&updatesStr, *c, &wg, timing)
 
 	// Systemd service status
 	var sysdStr string
 	wg.Add(1)
-	go getSystemD(&sysdStr, c, &wg, timing)
+	go getSystemD(&sysdStr, *c, &wg, timing)
 
 	// Docker containers
 	var dockerStr string
 	wg.Add(1)
-	go getDocker(&dockerStr, c, &wg, timing)
+	go getDocker(&dockerStr, *c, &wg, timing)
 
 	// Disk temps
 	var diskStr string
 	wg.Add(1)
-	go getDiskTemp(&diskStr, c, &wg, timing)
+	go getDiskTemp(&diskStr, *c, &wg, timing)
 
 	// CPU temps
 	var cpuStr string
 	wg.Add(1)
-	go getCPUTemp(&cpuStr, c, &wg, timing)
+	go getCPUTemp(&cpuStr, *c, &wg, timing)
 
 	// ZFS pool status
 	var zfsStr string
 	wg.Add(1)
-	go getZFS(&zfsStr, c, &wg, timing)
+	go getZFS(&zfsStr, *c, &wg, timing)
 
 	wg.Wait()
 	// Print results
@@ -289,5 +205,29 @@ func main() {
 	fmt.Println(zfsStr)
 
 	if timing { fmt.Printf("Main ran in: %s\n", time.Since(startMain).String()) }
+	// debugDumpConfig(&c)
+	// fmt.Printf("Struct dump:\n%#v\n\n", c)
+}
 
+// NewConf returns a `Conf` with sane default values
+func NewConf() *Conf {
+	var c Conf = Conf{}
+	// Init slices
+	c.CPU.Common.Init()
+	c.Disk.Common.Init()
+	c.Docker.Common.Init()
+	c.SysInfo.Init()
+	c.Systemd.Common.Init()
+	c.Updates.Common.Init()
+	c.ZFS.Common.Init()
+	// Set some defaults
+	c.Updates.File = "/tmp/go-check-updates.yaml"
+	c.Updates.Check, _ = time.ParseDuration("24h")
+	c.Disk.Warn = 40
+	c.Disk.Crit = 50
+	c.CPU.Warn = 70
+	c.CPU.Crit = 90
+	c.ZFS.Warn = 70
+	c.ZFS.Crit = 90
+	return &c
 }

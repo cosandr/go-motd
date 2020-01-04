@@ -3,14 +3,25 @@ package docker
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
-
 	"github.com/cosandr/go-motd/colors"
-
+	mt "github.com/cosandr/go-motd/types"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"sort"
+	"strings"
 )
+
+const (
+	dockerMinAPI = "1.40"
+	padL = "$"
+	padR = "%"
+)
+
+// Conf extends Common with a list of containers to ignore
+type Conf struct {
+	mt.Common `yaml:",inline"`
+	Ignore []string `yaml:"ignore"`
+}
 
 type stringSet map[string]struct{}
 var empty struct{}
@@ -28,17 +39,32 @@ func (s stringSet) FromList(listIn []string) stringSet {
 	return p
 }
 
-// CheckContainers using Docker API
-func CheckContainers(ignoreList []string, failedOnly bool) (header string, content string, err error) {
-    cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.40"))
+// Get docker container status using the API
+func Get(ret *string, c *Conf) {
+	header, content, _ := checkContainers(c.Ignore, *c.FailedOnly)
+	// Pad header
+	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	header = p.Do()
+	if len(content) == 0 {
+		*ret = header
+		return
+	}
+	// Pad container list
+	p = mt.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	content = p.Do()
+	*ret = header + "\n" + content
+}
+
+func checkContainers(ignoreList []string, failedOnly bool) (header string, content string, err error) {
+    cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(dockerMinAPI))
 	if err != nil {
-		header = fmt.Sprintf("Docker\t: %s\n", colors.Warn("unavailable"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("unavailable"))
 		return
 	}
 
 	allContainers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
-		header = fmt.Sprintf("Docker\t: %s\n", colors.Warn("unavailable"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("unavailable"))
 		return
 	}
 	// Make set of ignored containers
@@ -62,19 +88,19 @@ func CheckContainers(ignoreList []string, failedOnly bool) (header string, conte
 
 	// Decide what header should be
 	if len(goodCont) == 0 {
-		header = fmt.Sprintf("Docker\t: %s\n", colors.Err("critical"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Err("critical"))
 	} else if len(failedCont) == 0 {
-		header = fmt.Sprintf("Docker\t: %s\n", colors.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Good("OK"))
 		if failedOnly { return }
 	} else if len(failedCont) < len(allContainers) {
-		header = fmt.Sprintf("Docker\t: %s\n", colors.Warn("warning"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("warning"))
 	}
 	// Only print all containers if requested
 	for _, c := range sortedNames {
 		if val, ok := goodCont[c]; ok && !failedOnly {
-			content += fmt.Sprintf("%s\t: %s\n", c, colors.Good(val))
+			content += fmt.Sprintf("%s: %s\n", mt.Wrap(c, padL, padR), colors.Good(val))
 		} else if val, ok := failedCont[c]; ok {
-			content += fmt.Sprintf("%s\t: %s\n", c, colors.Err(val))
+			content += fmt.Sprintf("%s: %s\n", mt.Wrap(c, padL, padR), colors.Err(val))
 		}
 	}
 	return

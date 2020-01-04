@@ -1,15 +1,15 @@
 failedOnly: true
 updates:
-  headerRight: 3
-  contentLeft: 2
+  header: [0, 3]
+  content: [1, 0]
   show: false
   file: /tmp/go-check-updates.yaml
   check: 24h
 sysinfo:
-  headerRight: 4
+  header: [0, 4]
 systemd:
-  headerRight: 3
-  contentRight: 1
+  header: [0, 3]
+  content: [2, 1]
   units:
     - nginx.service
     - postgresql-12.service
@@ -21,22 +21,23 @@ systemd:
     - check-nginx-modules.service
     # - fictional.service
 docker:
-  headerRight: 4
-  contentRight: 1
+  header: [0, 4]
+  content: [2, 1]
   ignore:
     - code-server
 disk:
-  headerRight: 1
-  contentRight: 2
+  header: [0, 1]
+  content: [1, 1]
   warn: 40
   crit: 50
 cpu:
-  headerRight: 2
-  contentRight: 4
+  header: [0, 2]
+  content: [2, 2]
   warn: 70
   crit: 90
 zfs:
-  headerRight: 7
-  contentRight: 6
+  failedOnly: false
+  header: [0, 7]
+  content: [1, 5]
   warn: 70
   crit: 90

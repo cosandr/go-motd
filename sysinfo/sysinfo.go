@@ -1,16 +1,22 @@
 package sysinfo
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
+	"io/ioutil"
 	"os"
 	"os/exec"
-	"fmt"
-	"bytes"
-	"github.com/cosandr/go-motd/colors"
-	"bufio"
 	"regexp"
-	"strings"
-	"io/ioutil"
 	"strconv"
+	"strings"
+)
+
+const (
+	padL = "$"
+	padR = "%"
 )
 
 // runCmd executes command and returns stdout as string
@@ -54,8 +60,9 @@ func getDistroName() (retStr string) {
 	return
 }
 
-func getUptime(buf *bytes.Buffer) string {
-	uptime, err := runCmd("uptime", "-p", buf)
+func getUptime() string {
+	var buf bytes.Buffer
+	uptime, err := runCmd("uptime", "-p", &buf)
 	if err != nil {
 		return uptime
 	}
@@ -112,23 +119,32 @@ func getMemoryInfo() (retStr string) {
 	return fmt.Sprintf("%.2f GB active of %.2f GB", memActive/1e6, memTotal/1e6)
 }
 
-// GetSysInfo prints various stats about the host Linux OS (kernel, distro, load and more)
-func GetSysInfo() (content string) {
-	var stdout bytes.Buffer
+func getKernel() string {
+	var buf bytes.Buffer
+	var kernel, _ = runCmd("uname", "-sr", &buf)
+	return strings.ReplaceAll(kernel, "\n", "")
+}
+
+// Get various stats about the host Linux OS (kernel, distro, load and more)
+func Get(ret *string, c *mt.Common) {
+	header := getSysInfo()
+	// Pad header
+	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	header = p.Do()
+	*ret = header
+}
+
+func getSysInfo() (header string) {
 	// Fetch all the things
-	var distro = getDistroName()
-	var kernel, _ = runCmd("uname", "-sr", &stdout)
-	kernel = strings.ReplaceAll(kernel, "\n", "")
-	var uptime = getUptime(&stdout)
-	var loadavg = getLoadAvg()
-	var mem = getMemoryInfo()
-
-	// Add to content
-	content += fmt.Sprintf("Distro\t: %s\n", distro)
-	content += fmt.Sprintf("Kernel\t: %s\n", kernel)
-	content += fmt.Sprintf("Uptime\t: %s\n", uptime)
-	content += fmt.Sprintf("Load\t: %s\n", loadavg)
-	content += fmt.Sprintf("RAM\t: %s\n", mem)
-
+	var info = map[string]string{
+		"Distro": getDistroName(),
+		"Kernel": getKernel(),
+		"Uptime": getUptime(),
+		"Load": getLoadAvg(),
+		"RAM": getMemoryInfo(),
+	}
+	for name, val := range info {
+		header += fmt.Sprintf("%s: %s\n", mt.Wrap(name, padL, padR), val)
+	}
 	return
 }

@@ -1,29 +1,49 @@
 package zfs
 
 import (
-	"fmt"
 	"bytes"
+	"fmt"
+	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
 	"os/exec"
 	"strconv"
 	"strings"
-	"github.com/cosandr/go-motd/colors"
 )
 
 const tebibyte float64 = 1099511627776
 const gibibyte float64 = 1073741824
+const (
+	padL = "$"
+	padR = "%"
+)
 
 // zpool list -Hpo name,alloc,size,health
 // tank    6277009096704   11991548690432   ONLINE
 // Sizes are in bytes
 
-// GetPoolStatus runs `zpool list -Ho name,alloc,size,health` and parses the output
-func GetPoolStatus(warnUsage int, critUsage int, warnOnly bool) (header string, content string, err error) {
+// Get runs `zpool list -Ho name,alloc,size,health` and parses the output
+func Get(ret *string, c *mt.CommonWithWarn) {
+	header, content, _ := getPoolStatus(c.Warn, c.Crit, *c.FailedOnly)
+	// Pad header
+	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	header = p.Do()
+	if len(content) == 0 {
+		*ret = header
+		return
+	}
+	// Pad container list
+	p = mt.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	content = p.Do()
+	*ret = header + "\n" + content
+}
+
+func getPoolStatus(warnUsage int, critUsage int, warnOnly bool) (header string, content string, err error) {
 	var buf bytes.Buffer
 	cmd := exec.Command("zpool", "list", "-Hpo", "name,alloc,size,health")
 	cmd.Stdout = &buf
 	err = cmd.Run()
 	if err != nil {
-		header = fmt.Sprintf("ZFS\t: %s\n", colors.Warn("unavailable"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("ZFS", padL, padR), colors.Warn("unavailable"))
 		return
 	}
 	var status rune = 'o'
@@ -43,23 +63,23 @@ func GetPoolStatus(warnUsage int, critUsage int, warnOnly bool) (header string, 
 		usedPerc := int((usedBytes/totalBytes)*100)
 		if tmp[3] != "ONLINE" {
 			status = 'e'
-			content += fmt.Sprintf("%s\t: %s, %s used out of %s\n", tmp[0], colors.Err(tmp[3]), usedStr, totalStr)
+			content += fmt.Sprintf("%s: %s, %s used out of %s\n", mt.Wrap(tmp[0], padL, padR), colors.Err(tmp[3]), usedStr, totalStr)
 		} else if usedPerc < warnUsage && !warnOnly {
-			content += fmt.Sprintf("%s\t: %s, %s used out of %s\n", tmp[0], colors.Good(tmp[3]), usedStr, totalStr)
+			content += fmt.Sprintf("%s: %s, %s used out of %s\n", mt.Wrap(tmp[0], padL, padR), colors.Good(tmp[3]), usedStr, totalStr)
 		} else if usedPerc >= warnUsage && usedPerc < critUsage {
 			if status != 'e' { status = 'w' }
-			content += fmt.Sprintf("%s\t: %s, %s used out of %s\n", tmp[0], colors.Warn(tmp[3]), usedStr, totalStr)
+			content += fmt.Sprintf("%s: %s, %s used out of %s\n", mt.Wrap(tmp[0], padL, padR), colors.Warn(tmp[3]), usedStr, totalStr)
 		} else if usedPerc >= critUsage {
 			status = 'e'
-			content += fmt.Sprintf("%s\t: %s, %s used out of %s\n", tmp[0], colors.Err(tmp[3]), usedStr, totalStr)
+			content += fmt.Sprintf("%s: %s, %s used out of %s\n", mt.Wrap(tmp[0], padL, padR), colors.Err(tmp[3]), usedStr, totalStr)
 		}
 	}
 	if status == 'o' {
-		header = fmt.Sprintf("ZFS\t: %s\n", colors.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("ZFS", padL, padR), colors.Good("OK"))
 	} else if status == 'w' {
-		header = fmt.Sprintf("ZFS\t: %s\n", colors.Warn("Warning"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("ZFS", padL, padR), colors.Warn("Warning"))
 	} else {
-		header = fmt.Sprintf("ZFS\t: %s\n", colors.Err("Critical"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("ZFS", padL, padR), colors.Err("Critical"))
 	}
 	return
 }

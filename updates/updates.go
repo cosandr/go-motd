@@ -2,12 +2,26 @@ package updates
 
 import (
 	"fmt"
-	"time"
-	"io/ioutil"
-	"gopkg.in/yaml.v2"
-	"github.com/cosandr/go-motd/colors"
 	"github.com/cosandr/go-check-updates/types"
+	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"time"
 )
+
+const (
+	padL = "$"
+	padR = "%"
+)
+
+// Conf extends Common with a show toggle (same as failedOnly), path to file and how often to check
+type Conf struct {
+	mt.Common `yaml:",inline"`
+	Show *bool `yaml:"show"`
+	File string `yaml:"file"`
+	Check time.Duration `yaml:"check"`
+}
 
 func readUpdateCache(cacheFp string) (parsed types.YamlT, err error) {
 	yamlFile, err := ioutil.ReadFile(cacheFp)
@@ -32,23 +46,40 @@ func timeStr(d time.Duration) string {
 }
 
 // Get reads cached updates file and formats it
-func Get(cacheFp string, checkDur time.Duration) (header string, content string, err error) {
+func Get(ret *string, c *Conf) {
+	header, content, _ := parseFile(c.File, c.Check, *c.Show)
+	// Pad header
+	var p = mt.Pad{Delims: map[string]int{padL: c.Common.Header[0], padR: c.Common.Header[1]}, Content: header}
+	header = p.Do()
+	if len(content) == 0 {
+		*ret = header
+		return
+	}
+	// Pad container list
+	p = mt.Pad{Delims: map[string]int{padL: c.Common.Content[0], padR: c.Common.Content[1]}, Content: content}
+	content = p.Do()
+	*ret = header + "\n" + content
+}
+
+func parseFile(cacheFp string, checkDur time.Duration, show bool) (header string, content string, err error) {
 	parsed, err := readUpdateCache(cacheFp)
-	// TODO: Run go-check-updates and return
 	if err != nil {
-		header = fmt.Sprintf("Updates\t: %s\n", colors.Warn("unavailable"))
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Updates", padL, padR), colors.Warn("unavailable"))
 		return
 	}
 	var timeElapsed = time.Since(parsed.Checked)
-	// TODO
+	// TODO: Run go-check-updates and return
 	if timeElapsed > checkDur {
 		// Run in bg
-		// header = fmt.Sprintf("Updates\t: %s\n", colors.Warn("checking"))
+		// header = fmt.Sprintf("%s: %s\n", mt.Wrap("Updates", padL, padR), colors.Warn("checking"))
 		// return
 	}
-	for _, u := range parsed.Updates {
-		content += fmt.Sprintf("\t-> %s [%s]\n", u.Pkg, u.NewVer)
+	header = fmt.Sprintf("%s: %d pending, checked %s ago\n", mt.Wrap("Updates", padL, padR), len(parsed.Updates), timeStr(timeElapsed))
+	if !show {
+		return
 	}
-	header = fmt.Sprintf("Updates\t: %d pending, checked %s ago\n", len(parsed.Updates), timeStr(timeElapsed))
+	for _, u := range parsed.Updates {
+		content += fmt.Sprintf("%s -> %s\n", mt.Wrap(u.Pkg, padL, padR), u.NewVer)
+	}
 	return
 }
