@@ -7,7 +7,7 @@ import (
 	mt "github.com/cosandr/go-motd/types"
 	"sort"
 	"strconv"
-	"strings"
+	"regexp"
 )
 
 const (
@@ -89,9 +89,9 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt b
 		if len(stat) == 0 { continue }
 		wrapped := mt.Wrap(unit, padL, padR)
 		if hideExt {
-			// Remove .service or .timer
-			wrapped = strings.Replace(wrapped, ".service", "", 1)
-			wrapped = strings.Replace(wrapped, ".timer", "", 1)
+			// Remove all systemd extensions
+			re := regexp.MustCompile(`(\.service|\.socket|\.device|\.mount|\.automount|\.swap|\.target|\.path|\.timer|\.slice|\.scope)`)
+			wrapped = re.ReplaceAllString(wrapped, "")
 		}
 		// No such unit file
 		if stat["LoadState"] != "loaded" {
