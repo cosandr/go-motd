@@ -29,17 +29,19 @@ type Conf struct {
 	ZFS mt.CommonWithWarn
 }
 
-func readCfg(path string) (*Conf, error) {
-	var c *Conf
+func readCfg(path string) (c Conf, err error) {
+	c.Init()
 	yamlFile, err := ioutil.ReadFile(path)
 	if err != nil {
-		return NewConf(), fmt.Errorf("Config file error: %v ", err)
+		err = fmt.Errorf("Config file error: %v ", err)
+		return
 	}
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
-		return NewConf(), fmt.Errorf("Cannot parse %s: %v", path, err)
+		err = fmt.Errorf("Cannot parse %s: %v", path, err)
+		return
 	}
-	return c, nil
+	return
 }
 
 func getDocker(ret chan<- string, c Conf, timing bool) {
@@ -162,13 +164,13 @@ func main() {
 		"zfs": make(chan string, 1),
 	}
 
-	go getDocker(mods["docker"], *c, timing)
-	go getSysInfo(mods["sysinfo"], *c, timing)
-	go getSystemD(mods["systemd"], *c, timing)
-	go getCPUTemp(mods["cputemp"], *c, timing)
-	go getDiskTemp(mods["disktemp"], *c, timing)
-	go getUpdates(mods["updates"], *c, timing)
-	go getZFS(mods["zfs"], *c, timing)
+	go getDocker(mods["docker"], c, timing)
+	go getSysInfo(mods["sysinfo"], c, timing)
+	go getSystemD(mods["systemd"], c, timing)
+	go getCPUTemp(mods["cputemp"], c, timing)
+	go getDiskTemp(mods["disktemp"], c, timing)
+	go getUpdates(mods["updates"], c, timing)
+	go getZFS(mods["zfs"], c, timing)
 
 	// Wait and print results
 	for _, k := range printOrder {
@@ -180,9 +182,8 @@ func main() {
 	// fmt.Printf("Struct dump:\n%#v\n\n", c)
 }
 
-// NewConf returns a `Conf` with sane default values
-func NewConf() *Conf {
-	var c Conf = Conf{}
+// Init a config with sane default values
+func (c *Conf) Init() {
 	// Init slices
 	c.CPU.Common.Init()
 	c.Disk.Common.Init()
@@ -200,5 +201,4 @@ func NewConf() *Conf {
 	c.CPU.Crit = 90
 	c.ZFS.Warn = 70
 	c.ZFS.Crit = 90
-	return &c
 }
