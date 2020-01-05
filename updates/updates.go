@@ -46,19 +46,19 @@ func timeStr(d time.Duration) string {
 }
 
 // Get reads cached updates file and formats it
-func Get(ret *string, c *Conf) {
+func Get(ret chan<- string, c *Conf) {
 	header, content, _ := parseFile(c.File, c.Check, *c.Show)
 	// Pad header
 	var p = mt.Pad{Delims: map[string]int{padL: c.Common.Header[0], padR: c.Common.Header[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
-		*ret = header
+		ret <- header
 		return
 	}
 	// Pad container list
 	p = mt.Pad{Delims: map[string]int{padL: c.Common.Content[0], padR: c.Common.Content[1]}, Content: content}
 	content = p.Do()
-	*ret = header + "\n" + content
+	ret <- header + "\n" + content
 }
 
 func parseFile(cacheFp string, checkDur time.Duration, show bool) (header string, content string, err error) {

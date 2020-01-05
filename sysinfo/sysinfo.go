@@ -126,12 +126,12 @@ func getKernel() string {
 }
 
 // Get various stats about the host Linux OS (kernel, distro, load and more)
-func Get(ret *string, c *mt.Common) {
+func Get(ret chan<- string, c *mt.Common) {
 	header := getSysInfo()
 	// Pad header
 	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
 	header = p.Do()
-	*ret = header
+	ret <- header
 }
 
 func getSysInfo() (header string) {

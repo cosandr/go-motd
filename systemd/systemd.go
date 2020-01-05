@@ -32,7 +32,7 @@ func getConn() (con *dbus.Conn) {
 }
 
 // Get systemd unit status using dbus
-func Get(ret *string, c *Conf) {
+func Get(ret chan<- string, c *Conf) {
 	// Get new dbus connection
 	con := getConn()
 	defer con.Close()
@@ -41,13 +41,13 @@ func Get(ret *string, c *Conf) {
 	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
-		*ret = header
+		ret <- header
 		return
 	}
 	// Pad container list
 	p = mt.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
 	content = p.Do()
-	*ret = header + "\n" + content
+	ret <- header + "\n" + content
 }
 
 // getServiceStatus get service properties
@@ -101,7 +101,7 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt b
 			if stat["ActiveState"] == "active" {
 				goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Good(stat["ActiveState"]))
 			} else {
-				// Not running but existed sucessfully
+				// Not running but existed successfully
 				if stat["ExecMainStatus"] == "0" {
 					goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Good(stat["Result"]))
 				// Not running and failed

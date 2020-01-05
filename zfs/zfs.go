@@ -22,19 +22,19 @@ const (
 // Sizes are in bytes
 
 // Get runs `zpool list -Ho name,alloc,size,health` and parses the output
-func Get(ret *string, c *mt.CommonWithWarn) {
+func Get(ret chan<- string, c *mt.CommonWithWarn) {
 	header, content, _ := getPoolStatus(c.Warn, c.Crit, *c.FailedOnly)
 	// Pad header
 	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
-		*ret = header
+		ret <- header
 		return
 	}
 	// Pad container list
 	p = mt.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
 	content = p.Do()
-	*ret = header + "\n" + content
+	ret <- header + "\n" + content
 }
 
 func getPoolStatus(warnUsage int, critUsage int, warnOnly bool) (header string, content string, err error) {

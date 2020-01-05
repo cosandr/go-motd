@@ -40,19 +40,19 @@ func (s stringSet) FromList(listIn []string) stringSet {
 }
 
 // Get docker container status using the API
-func Get(ret *string, c *Conf) {
+func Get(ret chan<- string, c *Conf) {
 	header, content, _ := checkContainers(c.Ignore, *c.FailedOnly)
 	// Pad header
 	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
-		*ret = header
+		ret <- header
 		return
 	}
 	// Pad container list
 	p = mt.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
 	content = p.Do()
-	*ret = header + "\n" + content
+	ret <- header + "\n" + content
 }
 
 func checkContainers(ignoreList []string, failedOnly bool) (header string, content string, err error) {

@@ -12,7 +12,6 @@ import (
 	"github.com/cosandr/go-motd/zfs"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"sync"
 	"time"
 )
 
@@ -43,19 +42,7 @@ func readCfg(path string) (*Conf, error) {
 	return c, nil
 }
 
-func getSystemD(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
-	var start time.Time
-	if timing { start = time.Now() }
-	// Check for failedOnly override
-	if c.Systemd.FailedOnly == nil {
-		c.Systemd.FailedOnly = &c.FailedOnly
-	}
-	systemd.Get(ret, &c.Systemd)
-	if timing { fmt.Printf("Systemd in: %s\n", time.Since(start).String()) }
-	wg.Done()
-}
-
-func getDocker(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
+func getDocker(ret chan<- string, c Conf, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
 	// Check for failedOnly override
@@ -64,30 +51,27 @@ func getDocker(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	}
 	docker.Get(ret, &c.Docker)
 	if timing { fmt.Printf("Docker in: %s\n", time.Since(start).String()) }
-	wg.Done()
 }
 
-func getSysInfo(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
+func getSysInfo(ret chan<- string, c Conf, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
 	sysinfo.Get(ret, &c.SysInfo)
 	if timing { fmt.Printf("Sysinfo in: %s\n", time.Since(start).String()) }
-	wg.Done()
 }
 
-func getDiskTemp(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
+func getSystemD(ret chan<- string, c Conf, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
 	// Check for failedOnly override
-	if c.Disk.FailedOnly == nil {
-		c.Disk.FailedOnly = &c.FailedOnly
+	if c.Systemd.FailedOnly == nil {
+		c.Systemd.FailedOnly = &c.FailedOnly
 	}
-	temps.GetDiskTemps(ret, &c.Disk)
-	if timing { fmt.Printf("Disk temp in: %s\n", time.Since(start).String()) }
-	wg.Done()
+	systemd.Get(ret, &c.Systemd)
+	if timing { fmt.Printf("Systemd in: %s\n", time.Since(start).String()) }
 }
 
-func getCPUTemp(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
+func getCPUTemp(ret chan<- string, c Conf, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
 	// Check for failedOnly override
@@ -96,22 +80,20 @@ func getCPUTemp(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	}
 	temps.GetCPUTemp(ret, &c.CPU)
 	if timing { fmt.Printf("CPU temp in: %s\n", time.Since(start).String()) }
-	wg.Done()
 }
 
-func getZFS(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
+func getDiskTemp(ret chan<- string, c Conf, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
 	// Check for failedOnly override
-	if c.ZFS.FailedOnly == nil {
-		c.ZFS.FailedOnly = &c.FailedOnly
+	if c.Disk.FailedOnly == nil {
+		c.Disk.FailedOnly = &c.FailedOnly
 	}
-	zfs.Get(ret, &c.ZFS)
-	if timing { fmt.Printf("ZFS in: %s\n", time.Since(start).String()) }
-	wg.Done()
+	temps.GetDiskTemps(ret, &c.Disk)
+	if timing { fmt.Printf("Disk temp in: %s\n", time.Since(start).String()) }
 }
 
-func getUpdates(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
+func getUpdates(ret chan<- string, c Conf, timing bool) {
 	var start time.Time
 	if timing { start = time.Now() }
 	// Check for failedOnly override
@@ -120,7 +102,17 @@ func getUpdates(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
 	}
 	updates.Get(ret, &c.Updates)
 	if timing { fmt.Printf("Updates in: %s\n", time.Since(start).String()) }
-	wg.Done()
+}
+
+func getZFS(ret chan<- string, c Conf, timing bool) {
+	var start time.Time
+	if timing { start = time.Now() }
+	// Check for failedOnly override
+	if c.ZFS.FailedOnly == nil {
+		c.ZFS.FailedOnly = &c.FailedOnly
+	}
+	zfs.Get(ret, &c.ZFS)
+	if timing { fmt.Printf("ZFS in: %s\n", time.Since(start).String()) }
 }
 
 func debugDumpConfig(c *Conf) {
@@ -157,52 +149,31 @@ func main() {
 		fmt.Println(err)
 	}
 
-	var wg sync.WaitGroup
+	// Needs to match mods keys
+	var printOrder = [...]string{"sysinfo", "updates", "systemd", "docker", "disktemp", "cputemp", "zfs"}
 
-	// System info
-	var sysInfoStr string
-	wg.Add(1)
-	go getSysInfo(&sysInfoStr, *c, &wg, timing)
+	var mods = map[string]chan string{
+		"docker": make(chan string, 1),
+		"sysinfo": make(chan string, 1),
+		"systemd": make(chan string, 1),
+		"cputemp": make(chan string, 1),
+		"disktemp": make(chan string, 1),
+		"updates": make(chan string, 1),
+		"zfs": make(chan string, 1),
+	}
 
-	// Updates status
-	var updatesStr string
-	wg.Add(1)
-	go getUpdates(&updatesStr, *c, &wg, timing)
+	go getDocker(mods["docker"], *c, timing)
+	go getSysInfo(mods["sysinfo"], *c, timing)
+	go getSystemD(mods["systemd"], *c, timing)
+	go getCPUTemp(mods["cputemp"], *c, timing)
+	go getDiskTemp(mods["disktemp"], *c, timing)
+	go getUpdates(mods["updates"], *c, timing)
+	go getZFS(mods["zfs"], *c, timing)
 
-	// Systemd service status
-	var sysdStr string
-	wg.Add(1)
-	go getSystemD(&sysdStr, *c, &wg, timing)
-
-	// Docker containers
-	var dockerStr string
-	wg.Add(1)
-	go getDocker(&dockerStr, *c, &wg, timing)
-
-	// Disk temps
-	var diskStr string
-	wg.Add(1)
-	go getDiskTemp(&diskStr, *c, &wg, timing)
-
-	// CPU temps
-	var cpuStr string
-	wg.Add(1)
-	go getCPUTemp(&cpuStr, *c, &wg, timing)
-
-	// ZFS pool status
-	var zfsStr string
-	wg.Add(1)
-	go getZFS(&zfsStr, *c, &wg, timing)
-
-	wg.Wait()
-	// Print results
-	fmt.Println(sysInfoStr)
-	fmt.Println(updatesStr)
-	fmt.Println(sysdStr)
-	fmt.Println(dockerStr)
-	fmt.Println(diskStr)
-	fmt.Println(cpuStr)
-	fmt.Println(zfsStr)
+	// Wait and print results
+	for _, k := range printOrder {
+		fmt.Println(<- mods[k])
+	}
 
 	if timing { fmt.Printf("Main ran in: %s\n", time.Since(startMain).String()) }
 	// debugDumpConfig(&c)
