@@ -131,18 +131,28 @@ Modify main.go
 ```go
 import "demo/module"
 
+// Add your module to defaultOrder
+var defaultOrder = []string{..."module"}
+
 // Add your type to the Conf struct
 type Conf struct {
   ...
   Module module.Conf
 }
-// Add your module to defaultOrder
-var defaultOrder = []string{..."module"}
+
+// Update Init()
+func (c *Conf) Init() {
+  ...
+  c.Module.Common.Init()
+  // Set custom defaults
+  c.Module.More = true
+}
 
 // Create Get method
-func getModule(ret chan<- string, c Conf, timing bool) {
+func getModule(ret chan<- string, c Conf, endTime chan<- time.Time) {
   // You may do default checking here, see getZFS as an example
   module.Get(ret, &c.Module)
+  endTime <- time.Now()
 }
 
 // Add to main
@@ -153,17 +163,9 @@ func main() {
     switch k {
       ...
     case "module":
-      go getModule(outCh[k], c, timing)
+      go getModule(outCh[k], c, endTimes[k])
     }
   }
-}
-
-// Update Init()
-func (c *Conf) Init() {
-  ...
-  c.Module.Common.Init()
-  // Set custom defaults
-  c.Module.More = true
 }
 ```
 

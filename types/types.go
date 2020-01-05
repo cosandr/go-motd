@@ -1,10 +1,10 @@
 package types
 
 import (
-	"text/tabwriter"
 	"bytes"
-	"strings"
 	"fmt"
+	"strings"
+	"text/tabwriter"
 )
 
 // Common is the common type for all modules

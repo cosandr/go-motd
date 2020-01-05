@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
 )
 
 const (

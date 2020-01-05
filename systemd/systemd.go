@@ -2,12 +2,13 @@ package systemd
 
 import (
 	"fmt"
-	"github.com/coreos/go-systemd/dbus"
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
 	"sort"
 	"strconv"
 	"regexp"
+
+	"github.com/coreos/go-systemd/dbus"
+	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
 )
 
 const (

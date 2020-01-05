@@ -2,12 +2,13 @@ package updates
 
 import (
 	"fmt"
-	"github.com/cosandr/go-check-updates/types"
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"time"
+
+	"github.com/cosandr/go-check-updates/types"
+	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
 )
 
 const (

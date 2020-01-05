@@ -3,12 +3,13 @@ package docker
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/cosandr/go-motd/colors"
 	mt "github.com/cosandr/go-motd/types"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"sort"
-	"strings"
 )
 
 const (

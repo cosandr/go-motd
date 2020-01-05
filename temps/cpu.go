@@ -2,11 +2,12 @@ package temps
 
 import (
 	"fmt"
+	"regexp"
+	"sort"
+
 	"github.com/cosandr/go-motd/colors"
 	mt "github.com/cosandr/go-motd/types"
 	"github.com/shirou/gopsutil/host"
-	"regexp"
-	"sort"
 )
 
 const (

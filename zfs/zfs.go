@@ -3,11 +3,12 @@ package zfs
 import (
 	"bytes"
 	"fmt"
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
 )
 
 const tebibyte float64 = 1099511627776

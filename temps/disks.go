@@ -3,11 +3,12 @@ package temps
 import (
 	"bufio"
 	"fmt"
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
 )
 
 // GetDiskTemps returns disk temperatures as reported by the hddtemp deamon
