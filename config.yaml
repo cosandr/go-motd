@@ -1,4 +1,5 @@
 failedOnly: true
+# showOrder: [docker, sysinfo]
 updates:
   header: [0, 3]
   content: [1, 0]

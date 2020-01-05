@@ -23,22 +23,6 @@ type Conf struct {
 	Ignore []string `yaml:"ignore"`
 }
 
-type stringSet map[string]struct{}
-var empty struct{}
-
-func (s stringSet) Contains(v string) bool {
-	_, ok := s[v]
-	return ok
-}
-
-func (s stringSet) FromList(listIn []string) stringSet {
-	p := make(stringSet)
-	for _, val := range listIn {
-		p[val] = empty
-	}
-	return p
-}
-
 // Get docker container status using the API
 func Get(ret chan<- string, c *Conf) {
 	header, content, _ := checkContainers(c.Ignore, *c.FailedOnly)
@@ -68,7 +52,7 @@ func checkContainers(ignoreList []string, failedOnly bool) (header string, conte
 		return
 	}
 	// Make set of ignored containers
-	var ignoreSet stringSet
+	var ignoreSet mt.StringSet
 	ignoreSet = ignoreSet.FromList(ignoreList)
 	// Process output
 	var goodCont = make(map[string]string)

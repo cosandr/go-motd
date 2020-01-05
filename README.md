@@ -87,6 +87,8 @@ See structs in [main.go](./main.go) and provided [config.yaml](./config.yaml) fo
 
 Each module has a `header` and `content` array, the first value is the left padding (before the string starts) and the second is padding after the string but before some kind of delimiter (usually a semicolon). The padding for the header (usually `Module: STATUS`) is adjustable separately from its content. `failedOnly` can be set on a per-module basis, if present it will override the global option.
 
+It is possible to define which modules and in which order with `showOrder` in the config file.
+
 ## Adding more modules
 
 Basic module.go
@@ -134,21 +136,26 @@ type Conf struct {
   ...
   Module module.Conf
 }
+// Add your module to defaultOrder
+var defaultOrder = []string{..."module"}
 
 // Create Get method
 func getModule(ret chan<- string, c Conf, timing bool) {
   // You may do default checking here, see getZFS as an example
   module.Get(ret, &c.Module)
-  wg.Done()
 }
 
 // Add to main
 func main() {
   ...
-  // Add your module to printOrder
-  var printOrder = [...]string{..."module"}
-  // For now you must also call it
-  go getModule(mods["module"], c, timing)
+  // Add a case for it
+  for _, k := range printOrder {
+    switch k {
+      ...
+    case "module":
+      go getModule(outCh[k], c, timing)
+    }
+  }
 }
 
 // Update Init()
@@ -165,7 +172,6 @@ You may also add an entry to `config.yaml`, this will override what you have set
 ## Todo
 
 - Arrange into columns
-- Select active modules
 - Log to file
 - Dumb terminal option
 - Do something if update cache is out of date

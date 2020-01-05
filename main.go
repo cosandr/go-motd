@@ -15,11 +15,13 @@ import (
 	"time"
 )
 
-var defaultCfgPath string = "./config.yaml"
+var defaultCfgPath string = "./config.yaml"// Needs to match switch case below
+var defaultOrder = []string{"sysinfo", "updates", "systemd", "docker", "disk", "cpu", "zfs"}
 
 // Conf is the global config struct, defines YAML file
 type Conf struct {
 	FailedOnly bool `yaml:"failedOnly"`
+	ShowOrder []string `yaml:"showOrder"`
 	CPU mt.CommonWithWarn
 	Disk mt.CommonWithWarn
 	Docker docker.Conf
@@ -141,27 +143,57 @@ func main() {
 		fmt.Println(err)
 	}
 
-	// Needs to match mods keys
-	var printOrder = [...]string{"sysinfo", "updates", "systemd", "docker", "disktemp", "cputemp", "zfs"}
+	// Ideally same as c.ShowOrder, invalid module names are excluded
+	var printOrder []string
 
-	// Generate map
-	var mods = make(map[string]chan string)
-	for _, k := range printOrder {
-		mods[k] = make(chan string, 1)
+	// Did we get a list of enabled modules?
+	if len(c.ShowOrder) > 0 {
+		// checkSet is initialized with all valid module names
+		var checkSet mt.StringSet
+		checkSet = checkSet.FromList(defaultOrder)
+		for _, k := range c.ShowOrder {
+			if checkSet.Contains(k) {
+				printOrder = append(printOrder, k)
+			} else {
+				fmt.Printf("Unknown module %s\n", k)
+			}
+		}
+	} else {
+		printOrder = make([]string, len(defaultOrder))
+		copy(printOrder, defaultOrder)
 	}
 
-	// TODO: Auto call these as well, common interface?
-	go getDocker(mods["docker"], c, timing)
-	go getSysInfo(mods["sysinfo"], c, timing)
-	go getSystemD(mods["systemd"], c, timing)
-	go getCPUTemp(mods["cputemp"], c, timing)
-	go getDiskTemp(mods["disktemp"], c, timing)
-	go getUpdates(mods["updates"], c, timing)
-	go getZFS(mods["zfs"], c, timing)
+	// Generate output string channels
+	var outCh = make(map[string]chan string)
+	for _, k := range printOrder {
+		outCh[k] = make(chan string, 1)
+	}
+
+	for _, k := range printOrder {
+		switch k {
+		case "docker":
+			go getDocker(outCh[k], c, timing)
+		case "systemd":
+			go getSystemD(outCh[k], c, timing)
+		case "sysinfo":
+			go getSysInfo(outCh[k], c, timing)
+		case "cpu":
+			go getCPUTemp(outCh[k], c, timing)
+		case "disk":
+			go getDiskTemp(outCh[k], c, timing)
+		case "updates":
+			go getUpdates(outCh[k], c, timing)
+		case "zfs":
+			go getZFS(outCh[k], c, timing)
+		default:
+			// Critical failure
+			panic(fmt.Errorf("no case for %s", k))
+		}
+	}
 
 	// Wait and print results
 	for _, k := range printOrder {
-		fmt.Println(<- mods[k])
+		fmt.Println(<- outCh[k])
 	}
 
 	if timing { fmt.Printf("Main ran in: %s\n", time.Since(startMain).String()) }
