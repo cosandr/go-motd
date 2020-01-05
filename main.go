@@ -126,16 +126,6 @@ func debugDumpConfig(c *Conf) {
 	fmt.Printf("Config dump:\n%s\n\n", string(d))
 }
 
-func checkCfgLen(m string, c *mt.Common) error {
-	if len(c.Header) < 2 {
-		return fmt.Errorf("Header pad array in %s too short", m)
-	}
-	if len(c.Content) < 2 {
-		return fmt.Errorf("Content pad array in %s too short", m)
-	}
-	return nil
-}
-
 func main() {
 	var timing bool
 	var path string
@@ -154,16 +144,13 @@ func main() {
 	// Needs to match mods keys
 	var printOrder = [...]string{"sysinfo", "updates", "systemd", "docker", "disktemp", "cputemp", "zfs"}
 
-	var mods = map[string]chan string{
-		"docker": make(chan string, 1),
-		"sysinfo": make(chan string, 1),
-		"systemd": make(chan string, 1),
-		"cputemp": make(chan string, 1),
-		"disktemp": make(chan string, 1),
-		"updates": make(chan string, 1),
-		"zfs": make(chan string, 1),
+	// Generate map
+	var mods = make(map[string]chan string)
+	for _, k := range printOrder {
+		mods[k] = make(chan string, 1)
 	}
 
+	// TODO: Auto call these as well, common interface?
 	go getDocker(mods["docker"], c, timing)
 	go getSysInfo(mods["sysinfo"], c, timing)
 	go getSystemD(mods["systemd"], c, timing)

@@ -110,7 +110,7 @@ type Conf struct {
   More bool `yaml:"more"`
 }
 
-func Get(ret *string, c *Conf) {
+func Get(ret chan<- string, c *Conf) {
   header, content, err := internalFunc(c.More)
   // Initialize Pad
   var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
@@ -118,7 +118,7 @@ func Get(ret *string, c *Conf) {
   // For example `"$": 3` will replace `$` with 3 spaces.
   header = p.Do()
   // Repeat for content, reassign p and run p.Do again
-  *ret = header
+  ret <- header
 }
 
 func internalFunc(more bool) (header string, content string, err error) {}
@@ -135,23 +135,24 @@ type Conf struct {
   Module module.Conf
 }
 
-// Create WaitGroup compatible method
-func getModule(ret *string, c Conf, wg *sync.WaitGroup, timing bool) {
+// Create Get method
+func getModule(ret chan<- string, c Conf, timing bool) {
   // You may do default checking here, see getZFS as an example
   module.Get(ret, &c.Module)
   wg.Done()
 }
 
-// Call method from main
+// Add to main
 func main() {
   ...
-  var moduleStr string
-  wg.Add(1)
-  go getModule(&moduleStr, *c, &wg, timing)
+  // Add your module to printOrder
+  var printOrder = [...]string{..."module"}
+  // For now you must also call it
+  go getModule(mods["module"], c, timing)
 }
 
-// Update NewConf()
-func NewConf() *Conf {
+// Update Init()
+func (c *Conf) Init() {
   ...
   c.Module.Common.Init()
   // Set custom defaults
@@ -159,7 +160,7 @@ func NewConf() *Conf {
 }
 ```
 
-Finally add entry to `config.yaml`. It will likely crash if the config file and struct mismatch.
+You may also add an entry to `config.yaml`, this will override what you have set in `Init()`.
 
 ## Todo
 
@@ -169,4 +170,3 @@ Finally add entry to `config.yaml`. It will likely crash if the config file and 
 - Dumb terminal option
 - Do something if update cache is out of date
 - Parse `sensors` output directly to remove gopsutil dependency
-- Try channels instead of `WaitGroup`
