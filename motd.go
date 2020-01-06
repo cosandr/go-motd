@@ -101,7 +101,7 @@ func getCPUTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	if c.CPU.FailedOnly == nil {
 		c.CPU.FailedOnly = &c.FailedOnly
 	}
-	temps.GetCPUTemp(ret, &c.CPU)
+	temps.GetCPUTempSensors(ret, &c.CPU)
 	endTime <- time.Now()
 }
 

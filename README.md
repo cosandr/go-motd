@@ -173,4 +173,3 @@ You may also add an entry to `config.yaml`, this will override what you have set
 - Log to file
 - Dumb terminal option
 - Do something if update cache is out of date
-- Parse `sensors` output directly to remove gopsutil dependency
