@@ -172,7 +172,8 @@ func mapToTable(inStr map[string]string, colDef [][]string, buf *strings.Builder
 		}
 		table.Append(tmp)
 		table.Render()
-		table.ClearRows()
+		// Remake table to avoid imbalanced output
+		table = makeTable(buf, padding)
 	}
 }
 
@@ -285,8 +286,8 @@ func main() {
 		mapToTable(outStr, c.ColDef, outBuf, c.ColPad)
 		fmt.Print(outBuf.String())
 	} else {
-		for _, v := range outStr {
-			fmt.Println(v)
+		for _, k := range printOrder {
+			fmt.Println(outStr[k])
 		}
 	}
 	// Show timing results
