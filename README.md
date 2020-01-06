@@ -8,53 +8,13 @@ The available information will depend on the user privileges, you will need to b
 
 ## Example
 
-Compact:
+### All OK
 
-```sh
-Distro    : Fedora 30 (Thirty)
-Kernel    : Linux 5.3.16-200.fc30.x86_64
-Uptime    : 1 week, 3 days, 7 hours, 20 minutes
-Load      : 0.04 [1m], 0.16 [5m], 0.16 [15m]
-RAM       : 7.39 GB active of 16.17 GB
-Updates   : 6 pending, checked 88 minutes ago
-Systemd   : OK
-Docker    : OK
-Disk temp : OK
-CPU temp  : OK
-ZFS       : OK
-```
+![go-motd-OK](https://user-images.githubusercontent.com/7095687/71813464-f5215580-3079-11ea-9f70-46f66c2557da.jpg)
 
-Showing everything (cropped):
+### With some warnings
 
-```sh
-Distro    : Fedora 30 (Thirty)
-Kernel    : Linux 5.3.16-200.fc30.x86_64
-Uptime    : 1 week, 3 days, 7 hours, 28 minutes
-Load      : 0.10 [1m], 0.17 [5m], 0.17 [15m]
-RAM       : 7.36 GB active of 16.17 GB
-Updates   : 6 pending, checked 95 minutes ago
-  -> pgdg-fedora-repo.noarch [42.0-6]
-  -> pgdg-fedora-repo.noarch [42.0-6]
-...
-Systemd   : OK
-check-nginx-modules.service : success
-firewalld.service           : active
-...
-Docker    : OK
-bitwarden     : running
-cloudflare-ac : running
-...
-Disk temp : OK
-/dev/sda  : 27
-/dev/sdb  : 29
-...
-CPU temp  : OK
-Core 0    : 43
-Core 1    : 45
-...
-ZFS       : OK
-tank      : ONLINE, 5.71 TB used out of 10.91 TB
-```
+![go-motd-warn](https://user-images.githubusercontent.com/7095687/71813465-f5215580-3079-11ea-809d-05f661614679.jpg)
 
 ## Installation
 
@@ -77,17 +37,52 @@ Example line in `~/.zshrc`
 ## Requirements
 
 - hddtemp daemon is required for disk temps (start `hddtemp.service`)
-- Docker API version might need tweaking in [docker.go](./docker/docker.go) (change `dockerMinAPI`)
+- [dockerMinAPI](./docker/docker.go#L16) might need tweaking
 - `zfs-utils` for zpool status
 - [go-check-updates](https://github.com/cosandr/go-check-updates) for updates
+- `lm_sensors` for CPU temperatures
 
 ## Configuration
 
-See structs in [main.go](./main.go) and provided [config.yaml](./config.yaml) for examples. `failedOnly` hides content if there are no problems, usually defined by `warn` and `crit` for that specific module.
+### Global
 
-Each module has a `header` and `content` array, the first value is the left padding (before the string starts) and the second is padding after the string but before some kind of delimiter (usually a semicolon). The padding for the header (usually `Module: STATUS`) is adjustable separately from its content. `failedOnly` can be set on a per-module basis, if present it will override the global option.
+- `failedOnly` will hide content unless there is a warning, per-module override available
+- `showOrder` list of enabled modules, they will be displayed in the same order. If not defined, the order in [defaultOrder](./main.go#L22) will be used.
+- `colDef` arrange module ouput in columns as defined by a 2-dimensional array, configuration for example pictures shown below. Note that this overrides `showOrder`.
 
-It is possible to define which modules and in which order with `showOrder` in the config file.
+```yaml
+colDef:
+  - [sysinfo]
+  - [updates]
+  - [docker, systemd]
+  - [cpu, disk]
+  - [zfs]
+```
+
+- `colPad` number of spaces between columns
+
+### Generic options
+
+All modules implement at least `header`/`content`.
+
+- `header`/`content` arrays define padding, first element is padding to the left (of the module name) and second to the right, before the semicolon (useful for aligning vertically)
+- `warn`/`crit` unit depends on the module, for CPU/Disk temperatures it is degrees celsius, for ZFS pools it is % used
+
+### Updates
+
+- `show` displays the list of pending updates
+- `file` path to `go-check-updates` output yaml
+- `check` refresh updates if the file hasn't been updated for this long (not implemented)
+
+### Docker
+
+- `ignore` list of ignored container names
+
+### Systemd
+
+- `units` list of monitored units, must include file extension. This option must be set for the module to work.
+- `hideExt` hide the unit file extension when displaying their status
+
 
 ## Adding more modules
 
@@ -173,7 +168,6 @@ You may also add an entry to `config.yaml`, this will override what you have set
 
 ## Todo
 
-- Arrange into columns
 - Log to file
 - Dumb terminal option
 - Do something if update cache is out of date

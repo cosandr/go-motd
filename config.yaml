@@ -1,5 +1,12 @@
 failedOnly: true
 # showOrder: [docker, sysinfo]
+colDef:
+  - [sysinfo]
+  - [updates]
+  - [docker, systemd]
+  - [cpu, disk]
+  - [zfs]
+colPad: 10
 updates:
   header: [0, 3]
   content: [1, 0]

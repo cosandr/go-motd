@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"strings"
 	"time"
-
+	
+	"github.com/olekukonko/tablewriter"
 	"github.com/cosandr/go-motd/docker"
 	"github.com/cosandr/go-motd/sysinfo"
 	"github.com/cosandr/go-motd/systemd"
@@ -23,6 +25,8 @@ var defaultOrder = []string{"sysinfo", "updates", "systemd", "docker", "disk", "
 type Conf struct {
 	FailedOnly bool `yaml:"failedOnly"`
 	ShowOrder []string `yaml:"showOrder"`
+	ColDef [][]string `yaml:"colDef"`
+	ColPad int `yaml:"colPad"`
 	CPU mt.CommonWithWarn
 	Disk mt.CommonWithWarn
 	Docker docker.Conf
@@ -43,6 +47,7 @@ func (c *Conf) Init() {
 	c.Updates.Common.Init()
 	c.ZFS.Common.Init()
 	// Set some defaults
+	c.ColPad = 4
 	c.Updates.File = "/tmp/go-check-updates.yaml"
 	c.Updates.Check, _ = time.ParseDuration("24h")
 	c.Disk.Warn = 40
@@ -127,6 +132,91 @@ func getZFS(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	endTime <- time.Now()
 }
 
+func makeTable(buf *strings.Builder, padding int) (table *tablewriter.Table) {
+	table = tablewriter.NewWriter(buf)
+	table.SetAutoWrapText(false)
+	table.SetAutoFormatHeaders(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetRowSeparator("")
+	table.SetHeaderLine(false)
+	table.SetBorder(false)
+	table.SetTablePadding(strings.Repeat(" ", padding))
+	table.SetNoWhiteSpace(true)
+	return
+}
+
+func mapToTable(inStr map[string]string, colDef [][]string, buf *strings.Builder, padding int) {
+	table := makeTable(buf, padding)
+	var tmp []string
+	// Render a new table every row for compact output
+	for _, row := range colDef {
+		// Just write block to buffer if it is alone
+		if len(row) == 1 {
+			a, ok := inStr[row[0]]
+			// Skip invalid modules
+			if !ok {
+				continue
+			}
+			fmt.Fprintln(buf, a)
+			continue
+		}
+		tmp = nil
+		for _, k := range row {
+			a, ok := inStr[k]
+			if !ok {
+				continue
+			}
+			tmp = append(tmp, a)
+		}
+		table.Append(tmp)
+		table.Render()
+		table.ClearRows()
+	}
+}
+
+// makePrintOrder flattens colDef (if present). If showOrder is defined as well, it is ignored.
+// The list of modules in either of them must be defined in defaultOrder or they will be ignored.
+// This function removes invalid modules from c.ColDef
+func makePrintOrder(c *Conf) (printOrder []string) {
+	var tmp []string
+	var verifiedCols [][]string
+	var checkSet mt.StringSet
+	checkSet = checkSet.FromList(defaultOrder)
+	if len(c.ColDef) > 0 {
+		// Flatten 2-dim input
+		for _, row := range c.ColDef {
+			tmp = nil
+			for _, k := range row {
+				if checkSet.Contains(k) {
+					printOrder = append(printOrder, k)
+					tmp = append(tmp, k)
+				} else {
+					fmt.Printf("Unknown module %s\n", k)
+				}
+			}
+			if tmp != nil {
+				verifiedCols = append(verifiedCols, tmp)
+			}
+		}
+		c.ColDef = verifiedCols
+	} else if len(c.ShowOrder) > 0 {
+		for _, k := range c.ShowOrder {
+			if checkSet.Contains(k) {
+				printOrder = append(printOrder, k)
+			} else {
+				fmt.Printf("Unknown module %s\n", k)
+			}
+		}
+	} else {
+		// No need to check if using defaults
+		printOrder = make([]string, len(defaultOrder))
+		copy(printOrder, defaultOrder)
+	}
+	return
+}
+
 func main() {
 	var timing bool
 	var path string
@@ -146,25 +236,8 @@ func main() {
 		fmt.Println(err)
 	}
 
-	// Ideally same as c.ShowOrder, invalid module names are excluded
-	var printOrder []string
-
-	// Did we get a list of enabled modules?
-	if len(c.ShowOrder) > 0 {
-		// checkSet is initialized with all valid module names
-		var checkSet mt.StringSet
-		checkSet = checkSet.FromList(defaultOrder)
-		for _, k := range c.ShowOrder {
-			if checkSet.Contains(k) {
-				printOrder = append(printOrder, k)
-			} else {
-				fmt.Printf("Unknown module %s\n", k)
-			}
-		}
-	} else {
-		printOrder = make([]string, len(defaultOrder))
-		copy(printOrder, defaultOrder)
-	}
+	// Flatten colDef and check for invalid module names
+	var printOrder = makePrintOrder(&c)
 
 	var endTimes = make(map[string]chan time.Time)
 	endTimes["MAIN"] = make(chan time.Time, 1)
@@ -202,11 +275,20 @@ func main() {
 		}
 	}
 
+	var outStr = make(map[string]string)
 	// Wait and print results
 	for _, k := range printOrder {
-		fmt.Println(<- outCh[k])
+		outStr[k] = <- outCh[k]
 	}
-
+	if len(c.ColDef) > 0 {
+		outBuf := &strings.Builder{}
+		mapToTable(outStr, c.ColDef, outBuf, c.ColPad)
+		fmt.Print(outBuf.String())
+	} else {
+		for _, v := range outStr {
+			fmt.Println(v)
+		}
+	}
 	// Show timing results
 	if timing {
 		endTimes["MAIN"] <- time.Now()

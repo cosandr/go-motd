@@ -17,6 +17,7 @@ optdepends=(
     'docker: Docker container status'
     'hddtemp: Disk temperatures'
     'go-check-updates: Pending updates'
+    'lm_sensors: CPU temperatures'
 )
 makedepends=("git" "go")
 source=("git+$url")
