@@ -18,7 +18,7 @@ import (
 	"github.com/cosandr/go-motd/zfs"
 )
 
-var defaultCfgPath string = "./config.yaml"// Needs to match switch case below
+var defaultCfgPath string = "./config.yaml"
 var defaultOrder = []string{"sysinfo", "updates", "systemd", "docker", "disk", "cpu", "zfs"}
 
 // Conf is the global config struct, defines YAML file

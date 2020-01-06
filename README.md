@@ -20,7 +20,10 @@ The available information will depend on the user privileges, you will need to b
 
 ### Arch Linux
 
-See [PKGBUILD](./PKGBUILD)
+```sh
+wget https://raw.githubusercontent.com/cosandr/go-motd/master/PKGBUILD
+makepkg -si
+```
 
 `go-motd` will use the config file in `/etc/go-motd/config.yaml`, you probably want to run it at shell login.
 
@@ -82,7 +85,6 @@ All modules implement at least `header`/`content`.
 
 - `units` list of monitored units, must include file extension. This option must be set for the module to work.
 - `hideExt` hide the unit file extension when displaying their status
-
 
 ## Adding more modules
 
