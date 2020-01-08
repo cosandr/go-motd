@@ -14,14 +14,14 @@ import (
 
 const (
 	dockerMinAPI = "1.40"
-	padL = "$"
-	padR = "%"
+	padL         = "$"
+	padR         = "%"
 )
 
 // Conf extends Common with a list of containers to ignore
 type Conf struct {
 	mt.Common `yaml:",inline"`
-	Ignore []string `yaml:"ignore"`
+	Ignore    []string `yaml:"ignore"`
 }
 
 // Get docker container status using the API
@@ -41,7 +41,7 @@ func Get(ret chan<- string, c *Conf) {
 }
 
 func checkContainers(ignoreList []string, failedOnly bool) (header string, content string, err error) {
-    cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(dockerMinAPI))
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(dockerMinAPI))
 	if err != nil {
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("unavailable"))
 		return
@@ -61,7 +61,9 @@ func checkContainers(ignoreList []string, failedOnly bool) (header string, conte
 	var sortedNames []string
 	for _, container := range allContainers {
 		var cleanName = strings.TrimPrefix(container.Names[0], "/")
-		if ignoreSet.Contains(cleanName) { continue }
+		if ignoreSet.Contains(cleanName) {
+			continue
+		}
 		if container.State != "running" {
 			failedCont[cleanName] = container.State
 		} else {
@@ -76,7 +78,9 @@ func checkContainers(ignoreList []string, failedOnly bool) (header string, conte
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Err("critical"))
 	} else if len(failedCont) == 0 {
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Good("OK"))
-		if failedOnly { return }
+		if failedOnly {
+			return
+		}
 	} else if len(failedCont) < len(allContainers) {
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("warning"))
 	}

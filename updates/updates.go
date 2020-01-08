@@ -2,9 +2,10 @@ package updates
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/cosandr/go-check-updates/types"
 	"github.com/cosandr/go-motd/colors"
@@ -19,9 +20,9 @@ const (
 // Conf extends Common with a show toggle (same as failedOnly), path to file and how often to check
 type Conf struct {
 	mt.Common `yaml:",inline"`
-	Show *bool `yaml:"show"`
-	File string `yaml:"file"`
-	Check time.Duration `yaml:"check"`
+	Show      *bool         `yaml:"show"`
+	File      string        `yaml:"file"`
+	Check     time.Duration `yaml:"check"`
 }
 
 func readUpdateCache(cacheFp string) (parsed types.YamlT, err error) {

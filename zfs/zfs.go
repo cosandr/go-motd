@@ -50,7 +50,9 @@ func getPoolStatus(warnUsage int, critUsage int, warnOnly bool) (header string, 
 	var status rune = 'o'
 	for _, pool := range strings.Split(buf.String(), "\n") {
 		var tmp = strings.Split(pool, "\t")
-		if len(tmp) < 3 { continue }
+		if len(tmp) < 3 {
+			continue
+		}
 		usedBytes, _ := strconv.ParseFloat(tmp[1], 64)
 		totalBytes, _ := strconv.ParseFloat(tmp[2], 64)
 		var usedStr = fmt.Sprintf("%.2f GB", usedBytes/gibibyte)
@@ -61,14 +63,16 @@ func getPoolStatus(warnUsage int, critUsage int, warnOnly bool) (header string, 
 		if totalBytes > tebibyte {
 			totalStr = fmt.Sprintf("%.2f TB", totalBytes/tebibyte)
 		}
-		usedPerc := int((usedBytes/totalBytes)*100)
+		usedPerc := int((usedBytes / totalBytes) * 100)
 		if tmp[3] != "ONLINE" {
 			status = 'e'
 			content += fmt.Sprintf("%s: %s, %s used out of %s\n", mt.Wrap(tmp[0], padL, padR), colors.Err(tmp[3]), usedStr, totalStr)
 		} else if usedPerc < warnUsage && !warnOnly {
 			content += fmt.Sprintf("%s: %s, %s used out of %s\n", mt.Wrap(tmp[0], padL, padR), colors.Good(tmp[3]), usedStr, totalStr)
 		} else if usedPerc >= warnUsage && usedPerc < critUsage {
-			if status != 'e' { status = 'w' }
+			if status != 'e' {
+				status = 'w'
+			}
 			content += fmt.Sprintf("%s: %s, %s used out of %s\n", mt.Wrap(tmp[0], padL, padR), colors.Warn(tmp[3]), usedStr, totalStr)
 		} else if usedPerc >= critUsage {
 			status = 'e'

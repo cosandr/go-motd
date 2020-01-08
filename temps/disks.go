@@ -39,8 +39,8 @@ func getFromHddtemp(warnTemp int, critTemp int, failedOnly bool) (header string,
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Disk temp", padL, padR), colors.Err("failed"))
 		return
 	}
-	var numNotOK uint8 = 0
-	var numTotal uint8 = 0
+	var numNotOK uint8
+	var numTotal uint8
 	for _, line := range strings.Split(message, "||") {
 		line = strings.TrimPrefix(line, "|")
 		var tmp = strings.Split(line, "|")

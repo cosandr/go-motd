@@ -2,9 +2,9 @@ package systemd
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
-	"regexp"
 
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/cosandr/go-motd/colors"
@@ -19,8 +19,8 @@ const (
 // Conf extends Common with a list of units to monitor
 type Conf struct {
 	mt.Common `yaml:",inline"`
-	Units []string `yaml:"units"`
-	HideExt bool `yaml:"hideExt"`
+	Units     []string `yaml:"units"`
+	HideExt   bool     `yaml:"hideExt"`
 }
 
 // getConn returns new dbus connection
@@ -87,7 +87,9 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt b
 	for _, unit := range units {
 		var stat = unitProps[unit]
 		// Skip if we have no stats
-		if len(stat) == 0 { continue }
+		if len(stat) == 0 {
+			continue
+		}
 		wrapped := mt.Wrap(unit, padL, padR)
 		if hideExt {
 			// Remove all systemd extensions
@@ -105,11 +107,11 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt b
 				// Not running but existed successfully
 				if stat["ExecMainStatus"] == "0" {
 					goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Good(stat["Result"]))
-				// Not running and failed
+					// Not running and failed
 				} else {
 					failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Err(stat["ActiveState"]))
 				}
-			} 
+			}
 		}
 	}
 	// Decide what header should be
@@ -118,7 +120,9 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt b
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Systemd", padL, padR), colors.Err("critical"))
 	} else if len(failedUnits) == 0 {
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Systemd", padL, padR), colors.Good("OK"))
-		if failedOnly { return }
+		if failedOnly {
+			return
+		}
 	} else if len(failedUnits) < len(units) {
 		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Systemd", padL, padR), colors.Warn("warning"))
 	}

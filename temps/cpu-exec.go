@@ -72,8 +72,8 @@ func cpuTempSensors(warnTemp int, critTemp int, warnOnly bool) (header string, c
 		}
 	}
 	sort.Ints(sortedCPUs)
-	var warnCount int = 0
-	var errCount int = 0
+	var warnCount int
+	var errCount int
 	for _, k := range sortedCPUs {
 		var v = tempMap[k]
 		var wrapped = mt.Wrap(fmt.Sprintf("Core %d", k), padL, padR)

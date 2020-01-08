@@ -12,8 +12,8 @@ import (
 // Custom modules should respect these options
 type Common struct {
 	FailedOnly *bool `yaml:"failedOnly,omitempty"`
-	Header []int `yaml:"header"`
-	Content []int `yaml:"content"`
+	Header     []int `yaml:"header"`
+	Content    []int `yaml:"content"`
 }
 
 // Init sets `Header` and `Content` to [0, 0]
@@ -26,13 +26,13 @@ func (c *Common) Init() {
 // CommonWithWarn extends Common with warning and critical values
 type CommonWithWarn struct {
 	Common `yaml:",inline"`
-	Warn int `yaml:"warn"`
-	Crit int `yaml:"crit"`
+	Warn   int `yaml:"warn"`
+	Crit   int `yaml:"crit"`
 }
 
 // Pad holds the pad char and its number of spaces a map as well as the string itself
 type Pad struct {
-	Delims map[string]int
+	Delims  map[string]int
 	Content string
 }
 

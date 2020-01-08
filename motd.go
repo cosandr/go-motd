@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"strings"
 	"time"
-	
-	"github.com/olekukonko/tablewriter"
+
+	"gopkg.in/yaml.v2"
+
 	"github.com/cosandr/go-motd/docker"
 	"github.com/cosandr/go-motd/sysinfo"
 	"github.com/cosandr/go-motd/systemd"
@@ -16,6 +16,7 @@ import (
 	mt "github.com/cosandr/go-motd/types"
 	"github.com/cosandr/go-motd/updates"
 	"github.com/cosandr/go-motd/zfs"
+	"github.com/olekukonko/tablewriter"
 )
 
 var defaultCfgPath string = "./config.yaml"
@@ -23,17 +24,17 @@ var defaultOrder = []string{"sysinfo", "updates", "systemd", "docker", "disk", "
 
 // Conf is the global config struct, defines YAML file
 type Conf struct {
-	FailedOnly bool `yaml:"failedOnly"`
-	ShowOrder []string `yaml:"showOrder"`
-	ColDef [][]string `yaml:"colDef"`
-	ColPad int `yaml:"colPad"`
-	CPU mt.CommonWithWarn
-	Disk mt.CommonWithWarn
-	Docker docker.Conf
-	SysInfo mt.Common
-	Systemd systemd.Conf
-	Updates updates.Conf
-	ZFS mt.CommonWithWarn
+	FailedOnly bool       `yaml:"failedOnly"`
+	ShowOrder  []string   `yaml:"showOrder"`
+	ColDef     [][]string `yaml:"colDef"`
+	ColPad     int        `yaml:"colPad"`
+	CPU        mt.CommonWithWarn
+	Disk       mt.CommonWithWarn
+	Docker     docker.Conf
+	SysInfo    mt.Common
+	Systemd    systemd.Conf
+	Updates    updates.Conf
+	ZFS        mt.CommonWithWarn
 }
 
 // Init a config with sane default values
@@ -279,7 +280,7 @@ func main() {
 	var outStr = make(map[string]string)
 	// Wait and print results
 	for _, k := range printOrder {
-		outStr[k] = <- outCh[k]
+		outStr[k] = <-outCh[k]
 	}
 	if len(c.ColDef) > 0 {
 		outBuf := &strings.Builder{}

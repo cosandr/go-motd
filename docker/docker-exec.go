@@ -3,12 +3,12 @@
 package docker
 
 import (
-	"os/exec"
-	"fmt"
 	"bytes"
-	"text/tabwriter"
+	"fmt"
+	"os/exec"
 	"sort"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/cosandr/go-motd/colors"
 )
@@ -31,7 +31,9 @@ func CheckContainersExec(buf *bytes.Buffer, containers []string, padDockerHeader
 	var sortedNames []string
 	for _, c := range strings.Split(stdout.String(), "\n") {
 		var tmp = strings.Split(c, " ")
-		if len(tmp) < 2 { continue }
+		if len(tmp) < 2 {
+			continue
+		}
 		var cleanName = strings.TrimPrefix(tmp[0], `"`)
 		if tmp[1] == "Up" {
 			goodCont[cleanName] = tmp[1]
@@ -50,7 +52,9 @@ func CheckContainersExec(buf *bytes.Buffer, containers []string, padDockerHeader
 	} else if len(failedCont) == 0 {
 		fmt.Fprintf(w, "Docker\t: %s\n", colors.Good("OK"))
 		w.Flush()
-		if failedOnly { return }
+		if failedOnly {
+			return
+		}
 	} else if len(failedCont) < len(sortedNames) {
 		fmt.Fprintf(w, "Docker\t: %s\n", colors.Warn("warning"))
 		w.Flush()

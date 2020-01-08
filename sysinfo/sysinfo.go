@@ -90,12 +90,14 @@ func getMemoryInfo() (retStr string) {
 
 	scanner := bufio.NewScanner(file)
 	// Look for active and total
-	var memActive float64 = 0
-	var memTotal float64 = 0
+	var memActive float64
+	var memTotal float64
 	reActive := regexp.MustCompile(`Active:\s+(\d+)`)
 	reTotal := regexp.MustCompile(`MemTotal:\s+(\d+)`)
 	for scanner.Scan() {
-		if memTotal != 0 && memActive != 0 { break }
+		if memTotal != 0 && memActive != 0 {
+			break
+		}
 		if memActive == 0 {
 			// Look for active
 			m := reActive.FindSubmatch(scanner.Bytes())
@@ -137,7 +139,7 @@ func Get(ret chan<- string, c *mt.Common) {
 
 func getSysInfo() (header string) {
 	type entry struct {
-		name string
+		name    string
 		content string
 	}
 	// Fetch all the things
