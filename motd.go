@@ -221,11 +221,13 @@ func makePrintOrder(c *Conf) (printOrder []string) {
 
 func main() {
 	var timing bool
+	var forceUpdates bool
 	var path string
 	var startTimes map[string]time.Time
 	// Parse arguments
 	flag.StringVar(&path, "cfg", defaultCfgPath, "Path to config.yml file")
 	flag.BoolVar(&timing, "timing", false, "Enable timing")
+	flag.BoolVar(&forceUpdates, "updates", false, "Show list of pending updates, overrides config")
 	flag.Parse()
 
 	if timing {
@@ -236,6 +238,10 @@ func main() {
 	c, err := readCfg(path)
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	if forceUpdates {
+		c.Updates.Show = &forceUpdates
 	}
 
 	// Flatten colDef and check for invalid module names
