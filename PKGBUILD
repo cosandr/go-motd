@@ -26,8 +26,11 @@ md5sums=("SKIP")
 _config_path="/etc/${_pkgname}/config.yaml"
 
 pkgver() {
-    cd "${srcdir}/${_pkgname}"
-    git describe --always
+    cd "${_pkgname}"
+  ( set -o pipefail
+    git describe --long 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  )   
 }
 
 build() {
