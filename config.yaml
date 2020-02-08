@@ -36,9 +36,11 @@ docker:
     - code-server
 disk:
   header: [0, 1]
-  content: [1, 1]
+  content: [6, 1]
   warn: 40
   crit: 50
+  ignore:
+    - sdf
 cpu:
   header: [0, 2]
   content: [2, 2]

@@ -29,7 +29,7 @@ type Conf struct {
 	ColDef     [][]string `yaml:"colDef"`
 	ColPad     int        `yaml:"colPad"`
 	CPU        mt.CommonWithWarn
-	Disk       mt.CommonWithWarn
+	Disk       temps.DiskConf
 	Docker     docker.Conf
 	SysInfo    mt.Common
 	Systemd    systemd.Conf
