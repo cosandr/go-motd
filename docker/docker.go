@@ -21,12 +21,19 @@ const (
 // Conf extends Common with a list of containers to ignore
 type Conf struct {
 	mt.Common `yaml:",inline"`
+	Exec      bool     `yaml:"useExec"`
 	Ignore    []string `yaml:"ignore"`
 }
 
 // Get docker container status using the API
 func Get(ret chan<- string, c *Conf) {
-	header, content, _ := checkContainers(c.Ignore, *c.FailedOnly)
+	var header string
+	var content string
+	if c.Exec {
+		header, content, _ = checkContainersExec(c.Ignore, *c.FailedOnly)
+	} else {
+		header, content, _ = checkContainers(c.Ignore, *c.FailedOnly)
+	}
 	// Pad header
 	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
 	header = p.Do()

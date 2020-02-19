@@ -30,6 +30,7 @@ systemd:
     - check-nginx-modules.service
     # - fictional.service
 docker:
+  useExec: false
   header: [0, 4]
   content: [2, 1]
   ignore:

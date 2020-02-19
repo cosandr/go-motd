@@ -1,5 +1,3 @@
-// +build test
-
 package docker
 
 import (
@@ -8,24 +6,25 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/cosandr/go-motd/colors"
+	mt "github.com/cosandr/go-motd/types"
 )
 
-// CheckContainersExec returns container status using os/exec, ~5x slower than API
-func CheckContainersExec(buf *bytes.Buffer, containers []string, padDockerHeader int, padDockerContent int, failedOnly bool) {
-	w := tabwriter.NewWriter(buf, 0, 0, padDockerHeader, ' ', 0)
+// checkContainersExec returns container status using os/exec, ~5x slower than API
+func checkContainersExec(ignoreList []string, failedOnly bool) (header string, content string, err error) {
 	var stdout bytes.Buffer
 	cmd := exec.Command("docker", "ps", "--format", `"{{.Names}} {{.Status}}"`, "-a")
 	cmd.Stdout = &stdout
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
-		fmt.Fprintf(w, "Docker\t: %s\n", colors.Warn("unavailable"))
-		fmt.Println(err)
-		w.Flush()
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("unavailable"))
 		return
 	}
+	// Make set of ignored containers
+	var ignoreSet mt.StringSet
+	ignoreSet = ignoreSet.FromList(ignoreList)
+	// Process output
 	var goodCont = make(map[string]string)
 	var failedCont = make(map[string]string)
 	var sortedNames []string
@@ -35,6 +34,9 @@ func CheckContainersExec(buf *bytes.Buffer, containers []string, padDockerHeader
 			continue
 		}
 		var cleanName = strings.TrimPrefix(tmp[0], `"`)
+		if ignoreSet.Contains(cleanName) {
+			continue
+		}
 		if tmp[1] == "Up" {
 			goodCont[cleanName] = tmp[1]
 		} else {
@@ -45,28 +47,23 @@ func CheckContainersExec(buf *bytes.Buffer, containers []string, padDockerHeader
 	sort.Strings(sortedNames)
 
 	// Decide what header should be
-	// Only print all containers if requested
 	if len(goodCont) == 0 {
-		fmt.Fprintf(w, "Docker\t: %s\n", colors.Err("critical"))
-		w.Flush()
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Err("critical"))
 	} else if len(failedCont) == 0 {
-		fmt.Fprintf(w, "Docker\t: %s\n", colors.Good("OK"))
-		w.Flush()
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Good("OK"))
 		if failedOnly {
 			return
 		}
 	} else if len(failedCont) < len(sortedNames) {
-		fmt.Fprintf(w, "Docker\t: %s\n", colors.Warn("warning"))
-		w.Flush()
+		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("warning"))
 	}
-	w = tabwriter.NewWriter(buf, 0, 0, padDockerContent, ' ', 0)
-	// Print all in order
+	// Only print all containers if requested
 	for _, c := range sortedNames {
 		if val, ok := goodCont[c]; ok && !failedOnly {
-			fmt.Fprintf(w, "%s\t: %s\n", c, colors.Good(val))
+			content += fmt.Sprintf("%s: %s\n", mt.Wrap(c, padL, padR), colors.Good(val))
 		} else if val, ok := failedCont[c]; ok {
-			fmt.Fprintf(w, "%s\t: %s\n", c, colors.Err(val))
+			content += fmt.Sprintf("%s: %s\n", mt.Wrap(c, padL, padR), colors.Err(val))
 		}
 	}
-	w.Flush()
+	return
 }
