@@ -36,6 +36,7 @@ docker:
   ignore:
     - code-server
 disk:
+  useSys: true
   header: [0, 1]
   content: [6, 1]
   warn: 40

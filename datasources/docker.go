@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/cosandr/go-motd/utils"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )

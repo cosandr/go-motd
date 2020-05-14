@@ -18,7 +18,7 @@ var (
 	defaultOrder   = []string{"sysinfo", "updates", "systemd", "docker", "disk", "cpu", "zfs"}
 )
 
-// UpdatesConf is the global config struct, defines YAML file
+// Conf is the global config struct, defines YAML file
 type Conf struct {
 	FailedOnly bool       `yaml:"failedOnly"`
 	ShowOrder  []string   `yaml:"showOrder"`
