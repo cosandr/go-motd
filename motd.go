@@ -15,7 +15,7 @@ import (
 
 var (
 	defaultCfgPath = "./config.yaml"
-	defaultOrder   = []string{"sysinfo", "updates", "systemd", "docker", "disk", "cpu", "zfs"}
+	defaultOrder   = []string{"sysinfo", "updates", "systemd", "docker", "disk", "cpu", "zfs", "btrfs"}
 )
 
 // Conf is the global config struct, defines YAML file
@@ -31,6 +31,7 @@ type Conf struct {
 	Systemd    datasources.SystemdConf
 	Updates    datasources.UpdatesConf
 	ZFS        datasources.CommonWithWarnConf
+	BTRFS      datasources.CommonWithWarnConf
 }
 
 // Init a config with sane default values
@@ -43,6 +44,7 @@ func (c *Conf) Init() {
 	c.Systemd.CommonConf.Init()
 	c.Updates.CommonConf.Init()
 	c.ZFS.CommonConf.Init()
+	c.BTRFS.CommonConf.Init()
 	// Set some defaults
 	c.ColPad = 4
 	c.Updates.File = "/tmp/go-check-updates.yaml"
@@ -53,6 +55,8 @@ func (c *Conf) Init() {
 	c.CPU.Crit = 90
 	c.ZFS.Warn = 70
 	c.ZFS.Crit = 90
+	c.BTRFS.Warn = 70
+	c.BTRFS.Crit = 90
 }
 
 func readCfg(path string) (c Conf, err error) {
@@ -126,6 +130,15 @@ func getZFS(ret chan<- string, c Conf, endTime chan<- time.Time) {
 		c.ZFS.FailedOnly = &c.FailedOnly
 	}
 	datasources.GetZFS(ret, &c.ZFS)
+	endTime <- time.Now()
+}
+
+func getBtrfs(ret chan<- string, c Conf, endTime chan<- time.Time) {
+	// Check for failedOnly override
+	if c.BTRFS.FailedOnly == nil {
+		c.BTRFS.FailedOnly = &c.FailedOnly
+	}
+	datasources.GetBtrfs(ret, &c.BTRFS)
 	endTime <- time.Now()
 }
 
@@ -273,6 +286,8 @@ func main() {
 			go getUpdates(outCh[k], c, endTimes[k])
 		case "zfs":
 			go getZFS(outCh[k], c, endTimes[k])
+		case "btrfs":
+			go getBtrfs(outCh[k], c, endTimes[k])
 		default:
 			// Critical failure
 			panic(fmt.Errorf("no case for %s", k))

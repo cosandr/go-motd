@@ -47,14 +47,8 @@ func getPoolStatus(warnUsage int, critUsage int, warnOnly bool) (header string, 
 		}
 		usedBytes, _ := strconv.ParseFloat(tmp[1], 64)
 		totalBytes, _ := strconv.ParseFloat(tmp[2], 64)
-		var usedStr = fmt.Sprintf("%.2f GB", usedBytes/gibibyte)
-		var totalStr = fmt.Sprintf("%.2f GB", totalBytes/gibibyte)
-		if usedBytes > tebibyte {
-			usedStr = fmt.Sprintf("%.2f TB", usedBytes/tebibyte)
-		}
-		if totalBytes > tebibyte {
-			totalStr = fmt.Sprintf("%.2f TB", totalBytes/tebibyte)
-		}
+		var usedStr = utils.FormatBytes(usedBytes)
+		var totalStr = utils.FormatBytes(totalBytes)
 		usedPerc := int((usedBytes / totalBytes) * 100)
 		if tmp[3] != "ONLINE" {
 			status = 'e'

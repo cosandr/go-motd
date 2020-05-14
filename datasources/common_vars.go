@@ -1,10 +1,8 @@
 package datasources
 
 const (
-	padL     string  = "$"
-	padR     string  = "%"
-	tebibyte float64 = 1099511627776
-	gibibyte float64 = 1073741824
+	padL string = "$"
+	padR string = "%"
 )
 
 // CommonConf is the common type for all modules

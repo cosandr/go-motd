@@ -5,7 +5,7 @@ colDef:
   - [updates]
   - [docker, systemd]
   - [cpu, disk]
-  - [zfs]
+  - [zfs, btrfs]
 colPad: 10
 updates:
   header: [0, 3]
@@ -41,8 +41,6 @@ disk:
   content: [6, 1]
   warn: 40
   crit: 50
-  ignore:
-    - sdf
 cpu:
   useExec: false
   header: [0, 2]
