@@ -1,4 +1,4 @@
-failedOnly: true
+failedOnly: false
 # showOrder: [docker, sysinfo]
 colDef:
   - [sysinfo]
@@ -43,6 +43,7 @@ disk:
   ignore:
     - sdf
 cpu:
+  useExec: false
   header: [0, 2]
   content: [2, 2]
   warn: 70

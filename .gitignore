@@ -2,3 +2,5 @@ go-motd
 test
 .vscode
 *.log
+vendor
+.idea

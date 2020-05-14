@@ -1,4 +1,4 @@
-package docker
+package datasources
 
 import (
 	"bytes"
@@ -7,8 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
+	"github.com/cosandr/go-motd/utils"
 )
 
 // checkContainersExec returns container status using os/exec, ~5x slower than API
@@ -18,11 +17,11 @@ func checkContainersExec(ignoreList []string, failedOnly bool) (header string, c
 	cmd.Stdout = &stdout
 	err = cmd.Run()
 	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("unavailable"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Docker", padL, padR), utils.Warn("unavailable"))
 		return
 	}
 	// Make set of ignored containers
-	var ignoreSet mt.StringSet
+	var ignoreSet utils.StringSet
 	ignoreSet = ignoreSet.FromList(ignoreList)
 	// Process output
 	var goodCont = make(map[string]string)
@@ -48,21 +47,21 @@ func checkContainersExec(ignoreList []string, failedOnly bool) (header string, c
 
 	// Decide what header should be
 	if len(goodCont) == 0 {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Err("critical"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Docker", padL, padR), utils.Err("critical"))
 	} else if len(failedCont) == 0 {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Docker", padL, padR), utils.Good("OK"))
 		if failedOnly {
 			return
 		}
 	} else if len(failedCont) < len(sortedNames) {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Docker", padL, padR), colors.Warn("warning"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Docker", padL, padR), utils.Warn("warning"))
 	}
 	// Only print all containers if requested
 	for _, c := range sortedNames {
 		if val, ok := goodCont[c]; ok && !failedOnly {
-			content += fmt.Sprintf("%s: %s\n", mt.Wrap(c, padL, padR), colors.Good(val))
+			content += fmt.Sprintf("%s: %s\n", utils.Wrap(c, padL, padR), utils.Good(val))
 		} else if val, ok := failedCont[c]; ok {
-			content += fmt.Sprintf("%s: %s\n", mt.Wrap(c, padL, padR), colors.Err(val))
+			content += fmt.Sprintf("%s: %s\n", utils.Wrap(c, padL, padR), utils.Err(val))
 		}
 	}
 	return

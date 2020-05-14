@@ -1,4 +1,4 @@
-package systemd
+package datasources
 
 import (
 	"fmt"
@@ -6,65 +6,53 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/coreos/go-systemd/dbus"
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
+	"github.com/coreos/go-systemd/v22/dbus"
+	"github.com/cosandr/go-motd/utils"
 )
 
-const (
-	padL = "$"
-	padR = "%"
-)
-
-// Conf extends Common with a list of units to monitor
-type Conf struct {
-	mt.Common `yaml:",inline"`
-	Units     []string `yaml:"units"`
-	HideExt   bool     `yaml:"hideExt"`
+// SystemdConf extends CommonConf with a list of units to monitor
+type SystemdConf struct {
+	CommonConf `yaml:",inline"`
+	Units      []string `yaml:"units"`
+	HideExt    bool     `yaml:"hideExt"`
 }
 
-// getConn returns new dbus connection
-func getConn() (con *dbus.Conn) {
-	con, err := dbus.New()
-	if err != nil {
-		panic(err)
-	}
-	return con
-}
-
-// Get systemd unit status using dbus
-func Get(ret chan<- string, c *Conf) {
-	// Get new dbus connection
-	con := getConn()
-	defer con.Close()
-	header, content, _ := getServiceStatus(con, c.Units, *c.FailedOnly, c.HideExt)
+// GetSystemd gets systemd unit status using dbus
+func GetSystemd(ret chan<- string, c *SystemdConf) {
+	header, content, _ := getServiceStatus(c.Units, *c.FailedOnly, c.HideExt)
 	// Pad header
-	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
 		ret <- header
 		return
 	}
 	// Pad container list
-	p = mt.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	p = utils.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
 	content = p.Do()
 	ret <- header + "\n" + content
 }
 
 // getServiceStatus get service properties
-func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt bool) (header string, content string, err error) {
+func getServiceStatus(units []string, failedOnly bool, hideExt bool) (header string, content string, err error) {
+	con, err := dbus.New()
+	if err != nil {
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Err("DBus failed"))
+		return
+	}
+	defer con.Close()
 	if len(units) == 0 {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Systemd", padL, padR), colors.Warn("unconfigured"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Warn("unconfigured"))
 		return
 	}
 	getProps := []string{"ActiveState", "Result", "ExecMainStatus", "LoadState"}
 	sort.Strings(units)
-	var errStr string = ""
+	var errStr = ""
 	// Map of maps to hold properties
 	var unitProps = map[string]map[string]string{}
 	for _, u := range units {
 		unitProps[u] = map[string]string{}
-		// Get and store all properties
+		// GetSystemd and store all properties
 		props, err := con.GetAllProperties(u)
 		if err != nil {
 			errStr += fmt.Sprintf("Failed to get properties for %s: %s\n", u, err)
@@ -90,7 +78,7 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt b
 		if len(stat) == 0 {
 			continue
 		}
-		wrapped := mt.Wrap(unit, padL, padR)
+		wrapped := utils.Wrap(unit, padL, padR)
 		if hideExt {
 			// Remove all systemd extensions
 			re := regexp.MustCompile(`(\.service|\.socket|\.device|\.mount|\.automount|\.swap|\.target|\.path|\.timer|\.slice|\.scope)`)
@@ -98,18 +86,18 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt b
 		}
 		// No such unit file
 		if stat["LoadState"] != "loaded" {
-			failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Err(stat["LoadState"]))
+			failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, utils.Err(stat["LoadState"]))
 		} else {
 			// Service running
 			if stat["ActiveState"] == "active" {
-				goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Good(stat["ActiveState"]))
+				goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, utils.Good(stat["ActiveState"]))
 			} else {
 				// Not running but existed successfully
 				if stat["ExecMainStatus"] == "0" {
-					goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Good(stat["Result"]))
+					goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, utils.Good(stat["Result"]))
 					// Not running and failed
 				} else {
-					failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, colors.Err(stat["ActiveState"]))
+					failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, utils.Err(stat["ActiveState"]))
 				}
 			}
 		}
@@ -117,14 +105,14 @@ func getServiceStatus(con *dbus.Conn, units []string, failedOnly bool, hideExt b
 	// Decide what header should be
 	// Only print all services if requested
 	if len(goodUnits) == 0 {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Systemd", padL, padR), colors.Err("critical"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Err("critical"))
 	} else if len(failedUnits) == 0 {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Systemd", padL, padR), colors.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Good("OK"))
 		if failedOnly {
 			return
 		}
 	} else if len(failedUnits) < len(units) {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("Systemd", padL, padR), colors.Warn("warning"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Warn("warning"))
 	}
 	// Print all in order
 	for _, unit := range units {

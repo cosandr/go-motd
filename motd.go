@@ -7,46 +7,42 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
-	"github.com/cosandr/go-motd/docker"
-	"github.com/cosandr/go-motd/sysinfo"
-	"github.com/cosandr/go-motd/systemd"
-	"github.com/cosandr/go-motd/temps"
-	mt "github.com/cosandr/go-motd/types"
-	"github.com/cosandr/go-motd/updates"
-	"github.com/cosandr/go-motd/zfs"
+	"github.com/cosandr/go-motd/datasources"
+	"github.com/cosandr/go-motd/utils"
 	"github.com/olekukonko/tablewriter"
+	"gopkg.in/yaml.v2"
 )
 
-var defaultCfgPath string = "./config.yaml"
-var defaultOrder = []string{"sysinfo", "updates", "systemd", "docker", "disk", "cpu", "zfs"}
+var (
+	defaultCfgPath = "./config.yaml"
+	defaultOrder   = []string{"sysinfo", "updates", "systemd", "docker", "disk", "cpu", "zfs"}
+)
 
-// Conf is the global config struct, defines YAML file
+// UpdatesConf is the global config struct, defines YAML file
 type Conf struct {
 	FailedOnly bool       `yaml:"failedOnly"`
 	ShowOrder  []string   `yaml:"showOrder"`
 	ColDef     [][]string `yaml:"colDef"`
 	ColPad     int        `yaml:"colPad"`
-	CPU        mt.CommonWithWarn
-	Disk       temps.DiskConf
-	Docker     docker.Conf
-	SysInfo    mt.Common
-	Systemd    systemd.Conf
-	Updates    updates.Conf
-	ZFS        mt.CommonWithWarn
+	CPU        datasources.CPUTempConf
+	Disk       datasources.DiskConf
+	Docker     datasources.DockerConf
+	SysInfo    datasources.CommonConf
+	Systemd    datasources.SystemdConf
+	Updates    datasources.UpdatesConf
+	ZFS        datasources.CommonWithWarnConf
 }
 
 // Init a config with sane default values
 func (c *Conf) Init() {
 	// Init slices
-	c.CPU.Common.Init()
-	c.Disk.Common.Init()
-	c.Docker.Common.Init()
+	c.CPU.CommonConf.Init()
+	c.Disk.CommonConf.Init()
+	c.Docker.CommonConf.Init()
 	c.SysInfo.Init()
-	c.Systemd.Common.Init()
-	c.Updates.Common.Init()
-	c.ZFS.Common.Init()
+	c.Systemd.CommonConf.Init()
+	c.Updates.CommonConf.Init()
+	c.ZFS.CommonConf.Init()
 	// Set some defaults
 	c.ColPad = 4
 	c.Updates.File = "/tmp/go-check-updates.yaml"
@@ -79,12 +75,12 @@ func getDocker(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	if c.Docker.FailedOnly == nil {
 		c.Docker.FailedOnly = &c.FailedOnly
 	}
-	docker.Get(ret, &c.Docker)
+	datasources.GetDocker(ret, &c.Docker)
 	endTime <- time.Now()
 }
 
 func getSysInfo(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	sysinfo.Get(ret, &c.SysInfo)
+	datasources.GetSysInfo(ret, &c.SysInfo)
 	endTime <- time.Now()
 }
 
@@ -93,7 +89,7 @@ func getSystemD(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	if c.Systemd.FailedOnly == nil {
 		c.Systemd.FailedOnly = &c.FailedOnly
 	}
-	systemd.Get(ret, &c.Systemd)
+	datasources.GetSystemd(ret, &c.Systemd)
 	endTime <- time.Now()
 }
 
@@ -102,7 +98,7 @@ func getCPUTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	if c.CPU.FailedOnly == nil {
 		c.CPU.FailedOnly = &c.FailedOnly
 	}
-	temps.GetCPUTempSensors(ret, &c.CPU)
+	datasources.GetCPUTemp(ret, &c.CPU)
 	endTime <- time.Now()
 }
 
@@ -111,7 +107,7 @@ func getDiskTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	if c.Disk.FailedOnly == nil {
 		c.Disk.FailedOnly = &c.FailedOnly
 	}
-	temps.GetDiskTemps(ret, &c.Disk)
+	datasources.GetDiskTemps(ret, &c.Disk)
 	endTime <- time.Now()
 }
 
@@ -120,7 +116,7 @@ func getUpdates(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	if c.Updates.Show == nil {
 		c.Updates.Show = &c.FailedOnly
 	}
-	updates.Get(ret, &c.Updates)
+	datasources.GetUpdates(ret, &c.Updates)
 	endTime <- time.Now()
 }
 
@@ -129,7 +125,7 @@ func getZFS(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	if c.ZFS.FailedOnly == nil {
 		c.ZFS.FailedOnly = &c.FailedOnly
 	}
-	zfs.Get(ret, &c.ZFS)
+	datasources.GetZFS(ret, &c.ZFS)
 	endTime <- time.Now()
 }
 
@@ -184,7 +180,7 @@ func mapToTable(inStr map[string]string, colDef [][]string, buf *strings.Builder
 func makePrintOrder(c *Conf) (printOrder []string) {
 	var tmp []string
 	var verifiedCols [][]string
-	var checkSet mt.StringSet
+	var checkSet utils.StringSet
 	checkSet = checkSet.FromList(defaultOrder)
 	if len(c.ColDef) > 0 {
 		// Flatten 2-dim input
@@ -302,7 +298,7 @@ func main() {
 		endTimes["MAIN"] <- time.Now()
 		printOrder = append(printOrder, "MAIN")
 		for _, k := range printOrder {
-			fmt.Printf("%s ran in: %s\n", k, ((<-endTimes[k]).Sub(startTimes[k]).String()))
+			fmt.Printf("%s ran in: %s\n", k, (<-endTimes[k]).Sub(startTimes[k]).String())
 		}
 	}
 	// debugDumpConfig(&c)

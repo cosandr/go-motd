@@ -1,4 +1,4 @@
-package types
+package utils
 
 import (
 	"bytes"
@@ -6,29 +6,6 @@ import (
 	"strings"
 	"text/tabwriter"
 )
-
-// Common is the common type for all modules
-//
-// Custom modules should respect these options
-type Common struct {
-	FailedOnly *bool `yaml:"failedOnly,omitempty"`
-	Header     []int `yaml:"header"`
-	Content    []int `yaml:"content"`
-}
-
-// Init sets `Header` and `Content` to [0, 0]
-func (c *Common) Init() {
-	var defPad = []int{0, 0}
-	c.Content = defPad
-	c.Header = defPad
-}
-
-// CommonWithWarn extends Common with warning and critical values
-type CommonWithWarn struct {
-	Common `yaml:",inline"`
-	Warn   int `yaml:"warn"`
-	Crit   int `yaml:"crit"`
-}
 
 // Pad holds the pad char and its number of spaces a map as well as the string itself
 type Pad struct {
@@ -51,11 +28,6 @@ func (p *Pad) Do() string {
 		buf.Reset()
 	}
 	return strings.TrimSuffix(withTabs, "\n")
-}
-
-// Wrap `s` around start and end, returns <start>s<end>
-func Wrap(s string, start string, end string) string {
-	return fmt.Sprintf("%s%s%s", start, s, end)
 }
 
 // StringSet a set for strings, useful for keeping track of elements

@@ -91,31 +91,29 @@ All modules implement at least `header`/`content`.
 
 ## Adding more modules
 
-Basic module.go
+Basic example.go
 
 ```go
-package module
+package datasources
 
-import (
-  mt "github.com/cosandr/go-motd/types"
-)
+import "github.com/cosandr/go-motd/utils"
 
-// Choice is arbitrary, but they must not be the same or appear in the content itself
+// These must not occur in the output string itself, if they do, feel free to use your own constants
 const (
-  padL = "$"
-  padR = "%"
+  examplePadL = "^"  // Default is $
+  examplePadR = "&"  // Default is %
 )
 
-// Optional, can use mt.Common or mt.CommonWithWarn
-type Conf struct {
-  mt.Common `yaml:",inline"`
+// Optional, can use CommonConf or CommonWithWarnConf
+type ExampleConf struct {
+  CommonConf `yaml:",inline"`
   More bool `yaml:"more"`
 }
 
-func Get(ret chan<- string, c *Conf) {
+func GetExample(ret chan<- string, c *ExampleConf) {
   header, content, err := internalFunc(c.More)
   // Initialize Pad
-  var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+  var p = utils.Pad{Delims: map[string]int{examplePadL: c.Header[0], examplePadR: c.Header[1]}, Content: header}
   // Do() replaces the keys of the `Pad.Delims` map with value amount of spaces
   // For example `"$": 3` will replace `$` with 3 spaces.
   header = p.Do()
@@ -129,41 +127,38 @@ func internalFunc(more bool) (header string, content string, err error) {}
 Modify main.go
 
 ```go
-import "demo/module"
+package main
 
 // Add your module to defaultOrder
-var defaultOrder = []string{..."module"}
+var defaultOrder = []string{..., "example"}
 
-// Add your type to the Conf struct
 type Conf struct {
-  ...
-  Module module.Conf
+  // Add your type to the Conf struct
+  Example datasources.ExampleConf
 }
 
 // Update Init()
 func (c *Conf) Init() {
-  ...
-  c.Module.Common.Init()
+  // Init should be called, but adding defaults is optional
+  c.Example.Common.Init()
   // Set custom defaults
-  c.Module.More = true
+  c.Example.More = true
 }
 
 // Create Get method
-func getModule(ret chan<- string, c Conf, endTime chan<- time.Time) {
+func getExample(ret chan<- string, c Conf, endTime chan<- time.Time) {
   // You may do default checking here, see getZFS as an example
-  module.Get(ret, &c.Module)
+  datasources.GetExample(ret, &c.Module)
   endTime <- time.Now()
 }
 
 // Add to main
 func main() {
-  ...
   // Add a case for it
   for _, k := range printOrder {
     switch k {
-      ...
-    case "module":
-      go getModule(outCh[k], c, endTimes[k])
+    case "example":
+      go getExample(outCh[k], c, endTimes[k])
     }
   }
 }

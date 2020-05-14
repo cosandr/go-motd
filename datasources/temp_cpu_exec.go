@@ -1,4 +1,4 @@
-package temps
+package datasources
 
 import (
 	"bytes"
@@ -9,25 +9,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
+	"github.com/cosandr/go-motd/utils"
 )
-
-// GetCPUTempSensors returns CPU core temps by parsing sensors command output
-func GetCPUTempSensors(ret chan<- string, c *mt.CommonWithWarn) {
-	header, content, _ := cpuTempSensors(c.Warn, c.Crit, *c.FailedOnly)
-	// Pad header
-	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
-	header = p.Do()
-	if len(content) == 0 {
-		ret <- header
-		return
-	}
-	// Pad container list
-	p = mt.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
-	content = p.Do()
-	ret <- header + "\n" + content
-}
 
 func cpuTempSensors(warnTemp int, critTemp int, warnOnly bool) (header string, content string, err error) {
 	var buf bytes.Buffer
@@ -35,13 +18,13 @@ func cpuTempSensors(warnTemp int, critTemp int, warnOnly bool) (header string, c
 	cmd.Stdout = &buf
 	err = cmd.Run()
 	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("CPU temp", padL, padR), colors.Warn("unavailable"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("unavailable"))
 		return
 	}
 	var result map[string]interface{}
 	err = json.Unmarshal(buf.Bytes(), &result)
 	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("CPU temp", padL, padR), colors.Warn("sensors parse failed"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("sensors parse failed"))
 		return
 	}
 
@@ -76,24 +59,24 @@ func cpuTempSensors(warnTemp int, critTemp int, warnOnly bool) (header string, c
 	var errCount int
 	for _, k := range sortedCPUs {
 		var v = tempMap[k]
-		var wrapped = mt.Wrap(fmt.Sprintf("Core %d", k), padL, padR)
+		var wrapped = utils.Wrap(fmt.Sprintf("Core %d", k), padL, padR)
 		if v < warnTemp && !warnOnly {
-			content += fmt.Sprintf("%s: %s\n", wrapped, colors.Good(v))
+			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Good(v))
 		} else if v >= warnTemp && v < critTemp {
-			content += fmt.Sprintf("%s: %s\n", wrapped, colors.Warn(v))
+			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Warn(v))
 			warnCount++
 		} else if v >= critTemp {
 			warnCount++
 			errCount++
-			content += fmt.Sprintf("%s: %s\n", wrapped, colors.Err(v))
+			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Err(v))
 		}
 	}
 	if warnCount == 0 {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("CPU temp", padL, padR), colors.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Good("OK"))
 	} else if errCount > 0 {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("CPU temp", padL, padR), colors.Err("Critical"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Err("Critical"))
 	} else if warnCount > 0 {
-		header = fmt.Sprintf("%s: %s\n", mt.Wrap("CPU temp", padL, padR), colors.Warn("Warning"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("Warning"))
 	}
 	return
 }

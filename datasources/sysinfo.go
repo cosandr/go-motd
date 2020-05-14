@@ -1,4 +1,4 @@
-package sysinfo
+package datasources
 
 import (
 	"bufio"
@@ -11,14 +11,32 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cosandr/go-motd/colors"
-	mt "github.com/cosandr/go-motd/types"
+	"github.com/cosandr/go-motd/utils"
 )
 
-const (
-	padL = "$"
-	padR = "%"
-)
+// GetSysInfo various stats about the host Linux OS (kernel, distro, load and more)
+func GetSysInfo(ret chan<- string, c *CommonConf) {
+	var header string
+	type entry struct {
+		name    string
+		content string
+	}
+	// Fetch all the things
+	var info = [...]entry{
+		{"Distro", getDistroName()},
+		{"Kernel", getKernel()},
+		{"Uptime", getUptime()},
+		{"Load", getLoadAvg()},
+		{"RAM", getMemoryInfo()},
+	}
+	for _, e := range info {
+		header += fmt.Sprintf("%s: %s\n", utils.Wrap(e.name, padL, padR), e.content)
+	}
+	// Pad header
+	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	header = p.Do()
+	ret <- header
+}
 
 // runCmd executes command and returns stdout as string
 func runCmd(name string, args string, buf *bytes.Buffer) (string, error) {
@@ -27,7 +45,7 @@ func runCmd(name string, args string, buf *bytes.Buffer) (string, error) {
 	cmd.Stdout = buf
 	err := cmd.Run()
 	if err != nil {
-		retStr = colors.Warn("unavailable")
+		retStr = utils.Warn("unavailable")
 	} else {
 		retStr = buf.String()
 	}
@@ -38,7 +56,7 @@ func runCmd(name string, args string, buf *bytes.Buffer) (string, error) {
 func getDistroName() (retStr string) {
 	file, err := os.Open("/etc/os-release")
 	if err != nil {
-		retStr = colors.Warn("unavailable")
+		retStr = utils.Warn("unavailable")
 		return
 	}
 	defer file.Close()
@@ -55,7 +73,7 @@ func getDistroName() (retStr string) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		retStr = colors.Warn("unavailable")
+		retStr = utils.Warn("unavailable")
 		return
 	}
 	return
@@ -74,7 +92,7 @@ func getUptime() string {
 func getLoadAvg() string {
 	loadavg, err := ioutil.ReadFile("/proc/loadavg")
 	if err != nil {
-		return colors.Warn("unavailable")
+		return utils.Warn("unavailable")
 	}
 	var loadArr = strings.Split(string(loadavg), " ")
 	return fmt.Sprintf("%s [1m], %s [5m], %s [15m]", loadArr[0], loadArr[1], loadArr[2])
@@ -83,7 +101,7 @@ func getLoadAvg() string {
 func getMemoryInfo() (retStr string) {
 	file, err := os.Open("/proc/meminfo")
 	if err != nil {
-		retStr = colors.Warn("unavailable")
+		retStr = utils.Warn("unavailable")
 		return
 	}
 	defer file.Close()
@@ -115,7 +133,7 @@ func getMemoryInfo() (retStr string) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		retStr = colors.Warn("unavailable")
+		retStr = utils.Warn("unavailable")
 		return
 	}
 	// Convert to GB, meminfo is in kB
@@ -126,32 +144,4 @@ func getKernel() string {
 	var buf bytes.Buffer
 	var kernel, _ = runCmd("uname", "-sr", &buf)
 	return strings.ReplaceAll(kernel, "\n", "")
-}
-
-// Get various stats about the host Linux OS (kernel, distro, load and more)
-func Get(ret chan<- string, c *mt.Common) {
-	header := getSysInfo()
-	// Pad header
-	var p = mt.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
-	header = p.Do()
-	ret <- header
-}
-
-func getSysInfo() (header string) {
-	type entry struct {
-		name    string
-		content string
-	}
-	// Fetch all the things
-	var info = [...]entry{
-		{"Distro", getDistroName()},
-		{"Kernel", getKernel()},
-		{"Uptime", getUptime()},
-		{"Load", getLoadAvg()},
-		{"RAM", getMemoryInfo()},
-	}
-	for _, e := range info {
-		header += fmt.Sprintf("%s: %s\n", mt.Wrap(e.name, padL, padR), e.content)
-	}
-	return
 }
