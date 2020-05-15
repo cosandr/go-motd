@@ -9,6 +9,8 @@ I've decided to use Go because it is about 10x faster than a similar bash script
 
 The available information will depend on the user privileges, you will need to be able to run (without sudo) `systemctl status`, `docker inspect` and `zpool status` for example.
 
+Note that the BTRFS and ZFS space statistics are totals, that is to say, a RAID5 setup shows the used/total space across all drives. For example 3x4TB disks in RAIDZ1 show 10.91TB total, not the usable space which is about 7TB.
+
 ## Example
 
 ### All OK
@@ -42,8 +44,8 @@ Example line in `~/.zshrc`
 
 ## Requirements
 
-- hddtemp daemon is required for disk temps (start `hddtemp.service`)
-- [dockerMinAPI](./docker/docker.go#L16) might need tweaking
+- Kernel 5.6+ (drivetemp module) or hddtemp daemon are required for disk temps
+- [dockerMinAPI](./datasources/docker.go#L15) might need tweaking
 - `zfs-utils` for zpool status
 - [go-check-updates](https://github.com/cosandr/go-check-updates) for updates
 - `lm_sensors` for CPU temperatures
@@ -53,7 +55,7 @@ Example line in `~/.zshrc`
 ### Global
 
 - `failedOnly` will hide content unless there is a warning, per-module override available
-- `showOrder` list of enabled modules, they will be displayed in the same order. If not defined, the order in [defaultOrder](./main.go#L22) will be used.
+- `showOrder` list of enabled modules, they will be displayed in the same order. If not defined, the order in [defaultOrder](./main.go#L18) will be used.
 - `colDef` arrange module ouput in columns as defined by a 2-dimensional array, configuration for example pictures shown below. Note that this overrides `showOrder`.
 
 ```yaml
@@ -63,6 +65,7 @@ colDef:
   - [docker, systemd]
   - [cpu, disk]
   - [zfs]
+  - [btrfs]
 ```
 
 - `colPad` number of spaces between columns
@@ -79,6 +82,11 @@ All modules implement at least `header`/`content`.
 - `show` displays the list of pending updates
 - `file` path to `go-check-updates` output yaml
 - `check` refresh updates if the file hasn't been updated for this long (not implemented)
+
+### Disk temperatures
+
+- `useSys` will get disk temperatures from `/sys/block` instead of the hddtemp daemon.
+The drivetemp kernel module is required.
 
 ### Docker
 
@@ -140,7 +148,7 @@ type Conf struct {
 // Update Init()
 func (c *Conf) Init() {
   // Init should be called, but adding defaults is optional
-  c.Example.Common.Init()
+  c.Example.CommonConf.Init()
   // Set custom defaults
   c.Example.More = true
 }

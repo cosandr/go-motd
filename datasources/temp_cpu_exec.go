@@ -30,7 +30,7 @@ func cpuTempSensors(warnTemp int, critTemp int, warnOnly bool) (header string, c
 
 	reAllCores := regexp.MustCompile(`coretemp\S*`)
 	reCore := regexp.MustCompile(`Core\s(\d+)`)
-	reTemp := regexp.MustCompile(`temp\d+\_input`)
+	reTemp := regexp.MustCompile(`temp\d+_input`)
 
 	var tempMap = make(map[int]int)
 	var sortedCPUs []int

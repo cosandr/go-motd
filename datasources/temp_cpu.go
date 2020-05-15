@@ -43,7 +43,7 @@ func cpuTempGopsutil(warnTemp int, critTemp int, warnOnly bool) (header string, 
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("unavailable"))
 		return
 	}
-	reCore := regexp.MustCompile(`coretemp\_core(\d+)\_input`)
+	reCore := regexp.MustCompile(`coretemp_core(\d+)_input`)
 	var tempMap = make(map[string]int)
 	var sortedCPUs []string
 	for _, stat := range temps {

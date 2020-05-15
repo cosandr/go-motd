@@ -39,7 +39,7 @@ func getPoolStatus(warnUsage int, critUsage int, warnOnly bool) (header string, 
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("ZFS", padL, padR), utils.Warn("unavailable"))
 		return
 	}
-	var status rune = 'o'
+	var status = 'o'
 	for _, pool := range strings.Split(buf.String(), "\n") {
 		var tmp = strings.Split(pool, "\t")
 		if len(tmp) < 3 {

@@ -63,12 +63,12 @@ func readCfg(path string) (c Conf, err error) {
 	c.Init()
 	yamlFile, err := ioutil.ReadFile(path)
 	if err != nil {
-		err = fmt.Errorf("Config file error: %v ", err)
+		err = fmt.Errorf("config file error: %v ", err)
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
-		err = fmt.Errorf("Cannot parse %s: %v", path, err)
+		err = fmt.Errorf("cannot parse %s: %v", path, err)
 		return
 	}
 	return
@@ -231,12 +231,14 @@ func makePrintOrder(c *Conf) (printOrder []string) {
 func main() {
 	var timing bool
 	var forceUpdates bool
+	var dumpConfig bool
 	var path string
 	var startTimes map[string]time.Time
 	// Parse arguments
 	flag.StringVar(&path, "cfg", defaultCfgPath, "Path to config.yml file")
 	flag.BoolVar(&timing, "timing", false, "Enable timing")
 	flag.BoolVar(&forceUpdates, "updates", false, "Show list of pending updates, overrides config")
+	flag.BoolVar(&dumpConfig, "dump-config", false, "Dump loaded config to stdout")
 	flag.Parse()
 
 	if timing {
@@ -316,8 +318,10 @@ func main() {
 			fmt.Printf("%s ran in: %s\n", k, (<-endTimes[k]).Sub(startTimes[k]).String())
 		}
 	}
-	// debugDumpConfig(&c)
-	// fmt.Printf("Struct dump:\n%#v\n\n", c)
+	if dumpConfig {
+		debugDumpConfig(&c)
+		fmt.Printf("Struct dump:\n%#v\n\n", c)
+	}
 }
 
 func debugDumpConfig(c *Conf) {
@@ -326,5 +330,5 @@ func debugDumpConfig(c *Conf) {
 		fmt.Printf("error: %v\n", err)
 		return
 	}
-	fmt.Printf("Config dump:\n%s\n\n", string(d))
+	fmt.Printf("config dump:\n%s\n\n", string(d))
 }
