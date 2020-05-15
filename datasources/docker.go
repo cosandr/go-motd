@@ -60,6 +60,8 @@ func getDockerContainers() (cl containerList, err error) {
 	if err != nil {
 		return
 	}
+	cl.Runtime = "Docker"
+	cl.Root = true
 	for _, container := range allContainers {
 		cl.Containers = append(cl.Containers, containerStatus{
 			Name:   strings.TrimPrefix(container.Names[0], "/"),

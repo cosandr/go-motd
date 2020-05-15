@@ -42,7 +42,7 @@ func (cl *containerList) toHeaderContent(ignoreList []string, failedOnly bool) (
 	sort.Strings(sortedNames)
 
 	// Decide what header should be
-	if len(goodCont) == 0 {
+	if len(goodCont) == 0 && len(sortedNames) > 0 {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap(cl.Runtime, padL, padR), utils.Err("critical"))
 	} else if len(failedCont) == 0 {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap(cl.Runtime, padL, padR), utils.Good("OK"))

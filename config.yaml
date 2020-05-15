@@ -32,14 +32,14 @@ systemd:
     - check-nginx-modules.service
     # - fictional.service
 docker:
-  useExec: true
+  useExec: false
   header: [0, 4]
   content: [2, 1]
   ignore:
     - code-server
 podman:
   includeSudo: true
-  header: [0, 1]
+  header: [0, 4]
   content: [0, 1]
 disk:
   useSys: true
