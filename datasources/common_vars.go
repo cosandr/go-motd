@@ -1,8 +1,8 @@
 package datasources
 
 const (
-	padL string = "$"
-	padR string = "%"
+	padL string = "^L^"
+	padR string = "^R^"
 )
 
 // CommonConf is the common type for all modules

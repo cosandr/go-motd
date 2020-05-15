@@ -3,9 +3,11 @@ failedOnly: false
 colDef:
   - [sysinfo]
   - [updates]
-  - [docker, systemd]
+  - [docker, podman]
+  - [systemd]
   - [cpu, disk]
-  - [zfs, btrfs]
+  - [zfs]
+  - [btrfs]
 colPad: 10
 updates:
   header: [0, 3]
@@ -30,11 +32,15 @@ systemd:
     - check-nginx-modules.service
     # - fictional.service
 docker:
-  useExec: false
+  useExec: true
   header: [0, 4]
   content: [2, 1]
   ignore:
     - code-server
+podman:
+  includeSudo: true
+  header: [0, 1]
+  content: [0, 1]
 disk:
   useSys: true
   header: [0, 1]

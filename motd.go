@@ -15,7 +15,7 @@ import (
 
 var (
 	defaultCfgPath = "./config.yaml"
-	defaultOrder   = []string{"sysinfo", "updates", "systemd", "docker", "disk", "cpu", "zfs", "btrfs"}
+	defaultOrder   = []string{"sysinfo", "updates", "systemd", "docker", "podman", "disk", "cpu", "zfs", "btrfs"}
 )
 
 // Conf is the global config struct, defines YAML file
@@ -27,6 +27,7 @@ type Conf struct {
 	CPU        datasources.CPUTempConf
 	Disk       datasources.DiskConf
 	Docker     datasources.DockerConf
+	Podman     datasources.PodmanConf
 	SysInfo    datasources.CommonConf
 	Systemd    datasources.SystemdConf
 	Updates    datasources.UpdatesConf
@@ -40,6 +41,7 @@ func (c *Conf) Init() {
 	c.CPU.CommonConf.Init()
 	c.Disk.CommonConf.Init()
 	c.Docker.CommonConf.Init()
+	c.Podman.CommonConf.Init()
 	c.SysInfo.Init()
 	c.Systemd.CommonConf.Init()
 	c.Updates.CommonConf.Init()
@@ -80,6 +82,15 @@ func getDocker(ret chan<- string, c Conf, endTime chan<- time.Time) {
 		c.Docker.FailedOnly = &c.FailedOnly
 	}
 	datasources.GetDocker(ret, &c.Docker)
+	endTime <- time.Now()
+}
+
+func getPodman(ret chan<- string, c Conf, endTime chan<- time.Time) {
+	// Check for failedOnly override
+	if c.Podman.FailedOnly == nil {
+		c.Podman.FailedOnly = &c.FailedOnly
+	}
+	datasources.GetPodman(ret, &c.Podman)
 	endTime <- time.Now()
 }
 
@@ -276,6 +287,8 @@ func main() {
 		switch k {
 		case "docker":
 			go getDocker(outCh[k], c, endTimes[k])
+		case "podman":
+			go getPodman(outCh[k], c, endTimes[k])
 		case "systemd":
 			go getSystemD(outCh[k], c, endTimes[k])
 		case "sysinfo":

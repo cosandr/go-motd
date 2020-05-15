@@ -7,7 +7,7 @@ This project was inspired by [RIKRUS's](https://github.com/RIKRUS/MOTD) and [Her
 
 I've decided to use Go because it is about 10x faster than a similar bash script and it makes for a great first project using the language. In my tests it typically runs in 10-20ms, a similar bash script takes 200-500ms.
 
-The available information will depend on the user privileges, you will need to be able to run (without sudo) `systemctl status`, `docker inspect` and `zpool status` for example.
+The available information will depend on the user privileges, you will need to be able to run (without sudo) `systemctl status`, `docker ps` and `zpool status` for example.
 
 Note that the BTRFS and ZFS space statistics are totals, that is to say, a RAID5 setup shows the used/total space across all drives. For example 3x4TB disks in RAIDZ1 show 10.91TB total, not the usable space which is about 7TB.
 
@@ -62,7 +62,8 @@ Example line in `~/.zshrc`
 colDef:
   - [sysinfo]
   - [updates]
-  - [docker, systemd]
+  - [docker, podman]
+  - [systemd]
   - [cpu, disk]
   - [zfs]
   - [btrfs]
@@ -75,7 +76,7 @@ colDef:
 All modules implement at least `header`/`content`.
 
 - `header`/`content` arrays define padding, first element is padding to the left (of the module name) and second to the right, before the semicolon (useful for aligning vertically)
-- `warn`/`crit` unit depends on the module, for CPU/Disk temperatures it is degrees celsius, for ZFS pools it is % used
+- `warn`/`crit` unit depends on the module, for CPU/Disk temperatures it is degrees celsius, for storage (ZFS/btrfs) it is % used
 
 ### Updates
 
@@ -91,6 +92,13 @@ The drivetemp kernel module is required.
 ### Docker
 
 - `ignore` list of ignored container names
+- `useExec` get containers by parsing `docker` command output
+
+### Podman
+
+- `ignore` list of ignored container names
+- `sudo` get root containers, you should be able to run `sudo podman` without a password
+- `includeSudo` includes both root and rootless containers
 
 ### Systemd
 
@@ -108,8 +116,8 @@ import "github.com/cosandr/go-motd/utils"
 
 // These must not occur in the output string itself, if they do, feel free to use your own constants
 const (
-  examplePadL = "^"  // Default is $
-  examplePadR = "&"  // Default is %
+  examplePadL = "^"  // Default is ^L^
+  examplePadR = "&"  // Default is ^R^
 )
 
 // Optional, can use CommonConf or CommonWithWarnConf
