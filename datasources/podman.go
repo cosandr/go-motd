@@ -2,6 +2,7 @@ package datasources
 
 import (
 	"fmt"
+	"os/user"
 
 	"github.com/cosandr/go-motd/utils"
 )
@@ -18,6 +19,13 @@ type PodmanConf struct {
 func GetPodman(ret chan<- string, c *PodmanConf) {
 	var header string
 	var content string
+	// Check if we are root
+	runningUser, err := user.Current()
+	if err == nil && runningUser.Uid == "0" {
+		// Do not run sudo as root, there's no point
+		c.IncludeSudo = false
+		c.Sudo = false
+	}
 	if !c.IncludeSudo {
 		cl, err := getContainersExec(true, c.Sudo)
 		if err != nil {
