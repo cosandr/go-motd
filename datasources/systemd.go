@@ -15,11 +15,12 @@ type SystemdConf struct {
 	CommonConf `yaml:",inline"`
 	Units      []string `yaml:"units"`
 	HideExt    bool     `yaml:"hideExt"`
+	InactiveOK bool 	`yaml:"inactiveOK"`
 }
 
 // GetSystemd gets systemd unit status using dbus
 func GetSystemd(ret chan<- string, c *SystemdConf) {
-	header, content, _ := getServiceStatus(c.Units, *c.FailedOnly, c.HideExt)
+	header, content, _ := getServiceStatus(c.Units, *c.FailedOnly, c.HideExt, c.InactiveOK)
 	// Pad header
 	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
 	header = p.Do()
@@ -34,7 +35,7 @@ func GetSystemd(ret chan<- string, c *SystemdConf) {
 }
 
 // getServiceStatus get service properties
-func getServiceStatus(units []string, failedOnly bool, hideExt bool) (header string, content string, err error) {
+func getServiceStatus(units []string, failedOnly bool, hideExt bool, inactiveOK bool) (header string, content string, err error) {
 	con, err := dbus.New()
 	if err != nil {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Err("DBus failed"))
@@ -94,8 +95,12 @@ func getServiceStatus(units []string, failedOnly bool, hideExt bool) (header str
 			} else {
 				// Not running but existed successfully
 				if stat["ExecMainStatus"] == "0" {
-					goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, utils.Good(stat["Result"]))
-					// Not running and failed
+					if inactiveOK {
+						goodUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, utils.Good(stat["Result"]))
+					} else {
+						failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, utils.Warn(stat["ActiveState"]))
+					}
+				// Not running and failed
 				} else {
 					failedUnits[unit] = fmt.Sprintf("%s: %s\n", wrapped, utils.Err(stat["ActiveState"]))
 				}

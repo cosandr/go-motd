@@ -104,6 +104,7 @@ The drivetemp kernel module is required.
 
 - `units` list of monitored units, must include file extension. This option must be set for the module to work.
 - `hideExt` hide the unit file extension when displaying their status
+- `inactiveOK` consider inactive units with exit code 0 as being OK, if false they will be considered warnings
 
 ## Adding more modules
 

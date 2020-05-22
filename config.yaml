@@ -21,6 +21,7 @@ systemd:
   header: [0, 3]
   content: [2, 1]
   hideExt: true
+  inactiveOK: false
   units:
     - nginx.service
     - postgresql-12.service
@@ -30,6 +31,7 @@ systemd:
     - zfs-automount.service
     - zfs-mount.service
     - check-nginx-modules.service
+    - onedrive@andrei.service
     # - fictional.service
 docker:
   useExec: false
