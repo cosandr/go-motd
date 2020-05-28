@@ -241,34 +241,48 @@ func makePrintOrder(c *Conf) (printOrder []string) {
 }
 
 func main() {
-	var timing bool
-	var forceUpdates bool
-	var dumpConfig bool
-	var path string
-	var startTimes map[string]time.Time
+	var flagDebug bool
+	var flagUpdates bool
+	var flagDumpCfg bool
+	var flagCfg string
 	// Parse arguments
-	flag.StringVar(&path, "cfg", defaultCfgPath, "Path to config.yml file")
-	flag.BoolVar(&timing, "timing", false, "Enable timing")
-	flag.BoolVar(&forceUpdates, "updates", false, "Show list of pending updates, overrides config")
-	flag.BoolVar(&dumpConfig, "dump-config", false, "Dump loaded config to stdout")
+	flag.StringVar(&flagCfg, "cfg", defaultCfgPath, "Path to config.yml file")
+	flag.BoolVar(&flagDebug, "debug", false, "Debug mode")
+	flag.BoolVar(&flagUpdates, "updates", false, "Show list of pending updates only")
+	flag.BoolVar(&flagDumpCfg, "dump-config", false, "Dump config to stdout or provided filepath")
 	flag.Parse()
 
-	if timing {
+	var startTimes map[string]time.Time
+	if flagDebug {
 		startTimes = make(map[string]time.Time)
 		startTimes["MAIN"] = time.Now()
 	}
 	// Read config file
-	c, err := readCfg(path)
+	c, err := readCfg(flagCfg)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	if forceUpdates {
-		c.Updates.Show = &forceUpdates
+	if flagDumpCfg {
+		if flag.NArg() > 0 {
+			dumpConfig(&c, flag.Arg(0))
+		} else {
+			dumpConfig(&c, "")
+		}
+		return
 	}
 
 	// Flatten colDef and check for invalid module names
 	var printOrder = makePrintOrder(&c)
+
+	if flagUpdates {
+		// Ignore config (no padding)
+		c.Updates.Init()
+		// Set show to true
+		c.Updates.Show = &flagUpdates
+		// Only show updates
+		printOrder = []string{"updates"}
+	}
 
 	var endTimes = make(map[string]chan time.Time)
 	endTimes["MAIN"] = make(chan time.Time, 1)
@@ -276,13 +290,13 @@ func main() {
 	var outCh = make(map[string]chan string)
 	for _, k := range printOrder {
 		outCh[k] = make(chan string, 1)
-		if timing {
+		if flagDebug {
 			endTimes[k] = make(chan time.Time, 1)
 		}
 	}
 
 	for _, k := range printOrder {
-		if timing {
+		if flagDebug {
 			startTimes[k] = time.Now()
 		}
 		switch k {
@@ -325,24 +339,30 @@ func main() {
 		}
 	}
 	// Show timing results
-	if timing {
+	if flagDebug {
 		endTimes["MAIN"] <- time.Now()
 		printOrder = append(printOrder, "MAIN")
 		for _, k := range printOrder {
 			fmt.Printf("%s ran in: %s\n", k, (<-endTimes[k]).Sub(startTimes[k]).String())
 		}
 	}
-	if dumpConfig {
-		debugDumpConfig(&c)
-		fmt.Printf("Struct dump:\n%#v\n\n", c)
-	}
 }
 
-func debugDumpConfig(c *Conf) {
+func dumpConfig(c *Conf, writeFile string) {
 	d, err := yaml.Marshal(c)
 	if err != nil {
-		fmt.Printf("error: %v\n", err)
+		fmt.Printf("Config parse error: %v\n", err)
 		return
 	}
-	fmt.Printf("config dump:\n%s\n\n", string(d))
+	if writeFile != "" {
+		err = ioutil.WriteFile(writeFile, d, 0644)
+		if err != nil {
+			fmt.Printf("Config dumped failed: %v\n", err)
+			return
+		}
+		fmt.Printf("Config dumped to: %s\n", writeFile)
+	} else {
+		fmt.Printf("%s\n", string(d))
+	}
+	return
 }
