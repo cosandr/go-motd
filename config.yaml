@@ -1,4 +1,4 @@
-failedOnly: false
+failedOnly: true
 # showOrder: [docker, sysinfo]
 colDef:
   - [sysinfo]
@@ -9,30 +9,22 @@ colDef:
   - [zfs]
   - [btrfs]
 colPad: 10
-updates:
-  header: [0, 3]
-  content: [1, 0]
-  show: false
-  file: /tmp/go-check-updates.yaml
-  check: 24h
-sysinfo:
-  header: [0, 4]
-systemd:
-  header: [0, 3]
-  content: [2, 1]
-  hideExt: true
-  inactiveOK: false
-  units:
-    - nginx.service
-    - postgresql-12.service
-    - smb.service
-    - libvirtd.service
-    - firewalld.service
-    - zfs-automount.service
-    - zfs-mount.service
-    - check-nginx-modules.service
-    - onedrive@andrei.service
-    # - fictional.service
+btrfs:
+  failedOnly: false
+  header: [0, 5]
+  content: [1, 3]
+cpu:
+  useExec: false
+  header: [0, 2]
+  content: [2, 2]
+  warn: 70
+  crit: 90
+disk:
+  useSys: true
+  header: [0, 1]
+  content: [6, 1]
+  warn: 40
+  crit: 50
 docker:
   useExec: false
   header: [0, 4]
@@ -43,18 +35,29 @@ podman:
   includeSudo: true
   header: [0, 4]
   content: [0, 1]
-disk:
-  useSys: true
-  header: [0, 1]
-  content: [6, 1]
-  warn: 40
-  crit: 50
-cpu:
-  useExec: false
-  header: [0, 2]
-  content: [2, 2]
-  warn: 70
-  crit: 90
+sysinfo:
+  header: [0, 4]
+systemd:
+  failedOnly: false
+  header: [0, 3]
+  content: [2, 1]
+  hideExt: true
+  inactiveOK: false
+  showFailed: true
+  units:
+    - nginx.service
+    - smb.service
+    - libvirtd.service
+    - firewalld.service
+    - fictional.service
+    - run-borg.timer
+    - var.mount
+updates:
+  header: [0, 3]
+  content: [1, 0]
+  show: false
+  file: /tmp/go-check-updates.yaml
+  check: 24h
 zfs:
   failedOnly: false
   header: [0, 7]

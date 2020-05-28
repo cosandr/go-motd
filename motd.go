@@ -24,6 +24,7 @@ type Conf struct {
 	ShowOrder  []string   `yaml:"showOrder"`
 	ColDef     [][]string `yaml:"colDef"`
 	ColPad     int        `yaml:"colPad"`
+	BTRFS      datasources.CommonWithWarnConf
 	CPU        datasources.CPUTempConf
 	Disk       datasources.DiskConf
 	Docker     datasources.DockerConf
@@ -32,12 +33,12 @@ type Conf struct {
 	Systemd    datasources.SystemdConf
 	Updates    datasources.UpdatesConf
 	ZFS        datasources.CommonWithWarnConf
-	BTRFS      datasources.CommonWithWarnConf
 }
 
 // Init a config with sane default values
 func (c *Conf) Init() {
 	// Init slices
+	c.BTRFS.CommonConf.Init()
 	c.CPU.CommonConf.Init()
 	c.Disk.CommonConf.Init()
 	c.Docker.CommonConf.Init()
@@ -46,19 +47,19 @@ func (c *Conf) Init() {
 	c.Systemd.CommonConf.Init()
 	c.Updates.CommonConf.Init()
 	c.ZFS.CommonConf.Init()
-	c.BTRFS.CommonConf.Init()
 	// Set some defaults
-	c.ColPad = 4
-	c.Updates.File = "/tmp/go-check-updates.yaml"
-	c.Updates.Check, _ = time.ParseDuration("24h")
-	c.Disk.Warn = 40
-	c.Disk.Crit = 50
-	c.CPU.Warn = 70
-	c.CPU.Crit = 90
-	c.ZFS.Warn = 70
-	c.ZFS.Crit = 90
-	c.BTRFS.Warn = 70
 	c.BTRFS.Crit = 90
+	c.BTRFS.Warn = 70
+	c.ColPad = 4
+	c.CPU.Crit = 90
+	c.CPU.Warn = 70
+	c.Disk.Crit = 50
+	c.Disk.Warn = 40
+	c.Systemd.ShowFailed = true
+	c.Updates.Check, _ = time.ParseDuration("24h")
+	c.Updates.File = "/tmp/go-check-updates.yaml"
+	c.ZFS.Crit = 90
+	c.ZFS.Warn = 70
 }
 
 func readCfg(path string) (c Conf, err error) {
@@ -74,6 +75,33 @@ func readCfg(path string) (c Conf, err error) {
 		return
 	}
 	return
+}
+
+func getBtrfs(ret chan<- string, c Conf, endTime chan<- time.Time) {
+	// Check for failedOnly override
+	if c.BTRFS.FailedOnly == nil {
+		c.BTRFS.FailedOnly = &c.FailedOnly
+	}
+	datasources.GetBtrfs(ret, &c.BTRFS)
+	endTime <- time.Now()
+}
+
+func getCPUTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
+	// Check for failedOnly override
+	if c.CPU.FailedOnly == nil {
+		c.CPU.FailedOnly = &c.FailedOnly
+	}
+	datasources.GetCPUTemp(ret, &c.CPU)
+	endTime <- time.Now()
+}
+
+func getDiskTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
+	// Check for failedOnly override
+	if c.Disk.FailedOnly == nil {
+		c.Disk.FailedOnly = &c.FailedOnly
+	}
+	datasources.GetDiskTemps(ret, &c.Disk)
+	endTime <- time.Now()
 }
 
 func getDocker(ret chan<- string, c Conf, endTime chan<- time.Time) {
@@ -108,24 +136,6 @@ func getSystemD(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	endTime <- time.Now()
 }
 
-func getCPUTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.CPU.FailedOnly == nil {
-		c.CPU.FailedOnly = &c.FailedOnly
-	}
-	datasources.GetCPUTemp(ret, &c.CPU)
-	endTime <- time.Now()
-}
-
-func getDiskTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.Disk.FailedOnly == nil {
-		c.Disk.FailedOnly = &c.FailedOnly
-	}
-	datasources.GetDiskTemps(ret, &c.Disk)
-	endTime <- time.Now()
-}
-
 func getUpdates(ret chan<- string, c Conf, endTime chan<- time.Time) {
 	// Check for failedOnly override
 	if c.Updates.Show == nil {
@@ -141,15 +151,6 @@ func getZFS(ret chan<- string, c Conf, endTime chan<- time.Time) {
 		c.ZFS.FailedOnly = &c.FailedOnly
 	}
 	datasources.GetZFS(ret, &c.ZFS)
-	endTime <- time.Now()
-}
-
-func getBtrfs(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.BTRFS.FailedOnly == nil {
-		c.BTRFS.FailedOnly = &c.FailedOnly
-	}
-	datasources.GetBtrfs(ret, &c.BTRFS)
 	endTime <- time.Now()
 }
 
@@ -285,24 +286,24 @@ func main() {
 			startTimes[k] = time.Now()
 		}
 		switch k {
-		case "docker":
-			go getDocker(outCh[k], c, endTimes[k])
-		case "podman":
-			go getPodman(outCh[k], c, endTimes[k])
-		case "systemd":
-			go getSystemD(outCh[k], c, endTimes[k])
-		case "sysinfo":
-			go getSysInfo(outCh[k], c, endTimes[k])
+		case "btrfs":
+			go getBtrfs(outCh[k], c, endTimes[k])
 		case "cpu":
 			go getCPUTemp(outCh[k], c, endTimes[k])
 		case "disk":
 			go getDiskTemp(outCh[k], c, endTimes[k])
+		case "docker":
+			go getDocker(outCh[k], c, endTimes[k])
+		case "podman":
+			go getPodman(outCh[k], c, endTimes[k])
+		case "sysinfo":
+			go getSysInfo(outCh[k], c, endTimes[k])
+		case "systemd":
+			go getSystemD(outCh[k], c, endTimes[k])
 		case "updates":
 			go getUpdates(outCh[k], c, endTimes[k])
 		case "zfs":
 			go getZFS(outCh[k], c, endTimes[k])
-		case "btrfs":
-			go getBtrfs(outCh[k], c, endTimes[k])
 		default:
 			// Critical failure
 			panic(fmt.Errorf("no case for %s", k))
