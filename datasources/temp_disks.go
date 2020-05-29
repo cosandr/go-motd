@@ -21,15 +21,24 @@ type diskTemp struct {
 	temp float64
 }
 
-// DiskConf extends CommonConf with a list of devices to ignore
-type DiskConf struct {
-	CommonWithWarnConf `yaml:",inline"`
-	Ignore             []string `yaml:"ignore"`
-	Sys                bool     `yaml:"useSys"`
+// ConfTempDisk extends ConfBase with a list of devices to ignore
+type ConfTempDisk struct {
+	ConfBaseWarn `yaml:",inline"`
+	// List of disks to ignore, as they appear in /dev/
+	Ignore []string `yaml:"ignore,omitempty"`
+	// Read temperatures from /sys/ directly, requires drivetemp kernel module
+	Sys bool `yaml:"use_sys"`
+}
+
+// Init sets warning temperature to 40C and critical to 50C
+func (c *ConfTempDisk) Init() {
+	c.ConfBase.Init()
+	c.Warn = 40
+	c.Crit = 50
 }
 
 // GetDiskTemps returns disk temperatures using hddtemp daemon or drivetemp kernel driver
-func GetDiskTemps(ret chan<- string, c *DiskConf) {
+func GetDiskTemps(ret chan<- string, c *ConfTempDisk) {
 	var diskEntries []diskEntry
 	var err error
 	if c.Sys {
@@ -42,22 +51,22 @@ func GetDiskTemps(ret chan<- string, c *DiskConf) {
 	if err != nil {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", padL, padR), utils.Warn("unavailable"))
 	} else {
-		header, content, _ = formatDiskEntries(diskEntries, c.Ignore, c.Warn, c.Crit, *c.FailedOnly)
+		header, content, _ = formatDiskEntries(diskEntries, c.Ignore, c.Warn, c.Crit, *c.WarnOnly)
 	}
 	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
 		ret <- header
 		return
 	}
 	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
 	content = p.Do()
 	ret <- header + "\n" + content
 }
 
-func formatDiskEntries(diskEntries []diskEntry, ignoreList []string, warnTemp int, critTemp int, failedOnly bool) (header string, content string, err error) {
+func formatDiskEntries(diskEntries []diskEntry, ignoreList []string, warnTemp int, critTemp int, warnOnly bool) (header string, content string, err error) {
 	var numNotOK uint8
 	var numTotal uint8
 	// Make set of ignored devices
@@ -78,7 +87,7 @@ func formatDiskEntries(diskEntries []diskEntry, ignoreList []string, warnTemp in
 			if len(t.name) > 0 {
 				diskName += fmt.Sprintf(" - %s", t.name)
 			}
-			if temp < warnTemp && !failedOnly {
+			if temp < warnTemp && !warnOnly {
 				content += fmt.Sprintf("%s: %s\n", utils.Wrap(diskName, padL, padR), utils.Good(temp))
 			} else if temp >= warnTemp && temp < critTemp {
 				content += fmt.Sprintf("%s: %s\n", utils.Wrap(diskName, padL, padR), utils.Warn(temp))

@@ -9,30 +9,37 @@ import (
 	"github.com/shirou/gopsutil/host"
 )
 
-// CPUTempConf extends CommonConf with a list of containers to ignore
-type CPUTempConf struct {
-	CommonWithWarnConf `yaml:",inline"`
-	Exec               bool `yaml:"useExec"`
+// ConfTempCPU extends ConfBase with a list of containers to ignore
+type ConfTempCPU struct {
+	ConfBaseWarn `yaml:",inline"`
+	// Get CPU temperatures by parsing 'sensors -j' output
+	Exec bool `yaml:"use_exec"`
+}
+
+// Init sets up default alignment
+func (c *ConfTempCPU) Init() {
+	c.ConfBaseWarn.Init()
+	c.PadHeader[1] = 1
 }
 
 // GetCPUTemp returns CPU core temps using gopsutil or parsing sensors output
-func GetCPUTemp(ret chan<- string, c *CPUTempConf) {
+func GetCPUTemp(ret chan<- string, c *ConfTempCPU) {
 	var header string
 	var content string
 	if c.Exec {
-		header, content, _ = cpuTempSensors(c.Warn, c.Crit, *c.FailedOnly)
+		header, content, _ = cpuTempSensors(c.Warn, c.Crit, *c.WarnOnly)
 	} else {
-		header, content, _ = cpuTempGopsutil(c.Warn, c.Crit, *c.FailedOnly)
+		header, content, _ = cpuTempGopsutil(c.Warn, c.Crit, *c.WarnOnly)
 	}
 	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
 		ret <- header
 		return
 	}
 	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
 	content = p.Do()
 	ret <- header + "\n" + content
 }

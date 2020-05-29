@@ -11,6 +11,14 @@ The available information will depend on the user privileges, you will need to b
 
 Note that the BTRFS and ZFS space statistics are totals, that is to say, a RAID5 setup shows the used/total space across all drives. For example 3x4TB disks in RAIDZ1 show 10.91TB total, not the usable space which is about 7TB.
 
+You can dump the default config by passing an invalid path as the `-cfg` argument and using `-dump-config` at the same time.
+
+Configuration changed on 2020-05-29, automatic conversion can be done with [migrate.go](./tools/migrate.go). TL;DR of changes:
+- `global` section instead of being root level
+- `header` and `content` are now `pad_header` and `pad_content`
+- `failedOnly` is now `warnings_only`, I think this more clearly communicates what it does
+- All keys changed from camelCase to snake_case, follows yaml standards better
+
 ## Example
 
 ### All OK
@@ -45,7 +53,7 @@ Example line in `~/.zshrc`
 ## Requirements
 
 - Kernel 5.6+ (drivetemp module) or hddtemp daemon are required for disk temps
-- [dockerMinAPI](./datasources/docker.go#L15) might need tweaking
+- `dockerMinAPI` in [docker.go](./datasources/docker.go) might need tweaking
 - `zfs-utils` for zpool status
 - [go-check-updates](https://github.com/cosandr/go-check-updates) for updates
 - `lm_sensors` for CPU temperatures
@@ -54,12 +62,12 @@ Example line in `~/.zshrc`
 
 ### Global
 
-- `failedOnly` will hide content unless there is a warning, per-module override available
-- `showOrder` list of enabled modules, they will be displayed in the same order. If not defined, the order in [defaultOrder](./main.go#L18) will be used.
-- `colDef` arrange module ouput in columns as defined by a 2-dimensional array, configuration for example pictures shown below. Note that this overrides `showOrder`.
+- `warnings_only` will hide content unless there is a warning, per-module override available
+- `show_order` list of enabled modules, they will be displayed in the same order. If not defined, the order in [defaultOrder](./motd.go#L18) will be used.
+- `col_def` arrange module ouput in columns as defined by a 2-dimensional array, configuration for example pictures shown below. Note that this overrides `show_order`.
 
 ```yaml
-colDef:
+col_def:
   - [sysinfo]
   - [updates]
   - [docker, podman]
@@ -69,43 +77,66 @@ colDef:
   - [btrfs]
 ```
 
-- `colPad` number of spaces between columns
+- `col_pad` number of spaces between columns
 
 ### Generic options
 
-All modules implement at least `header`/`content`.
+All modules implement at least `warnings_only`, `pad_header` and `pad_content`.
 
-- `header`/`content` arrays define padding, first element is padding to the left (of the module name) and second to the right, before the semicolon (useful for aligning vertically)
-- `warn`/`crit` unit depends on the module, for CPU/Disk temperatures it is degrees celsius, for storage (ZFS/btrfs) it is % used
+- `warnings_only` overrides global setting for that module only
+- `pad_header` is a 2-element array of integers, the first represents the number of spaces before the text, the second is spaces after the text, but before `:`
+```
+# pad_header: [0, 2]
+Example  : OK
+# pad_header: [2, 0]
+  Example: OK
+# pad_header: [1, 2]
+ Example  : OK
+```
+- `pad_content` is the same but for details, the padding applies to all lines equally
 
-### Updates
+### CPU temperatures
 
-- `show` displays the list of pending updates
-- `file` path to `go-check-updates` output yaml
-- `check` refresh updates if the file hasn't been updated for this long (not implemented)
+- `warn`/`crit` are temperatures to consider warning or critical level
+- `use_exec` get CPU temperature by parsing `sensors -j` output
 
 ### Disk temperatures
 
-- `useSys` will get disk temperatures from `/sys/block` instead of the hddtemp daemon.
+- `warn`/`crit` are temperatures to consider warning or critical level
+- `ignore` list of disks to ignore (uses names from /dev/)
+- `use_sys` will get disk temperatures from `/sys/block` instead of the hddtemp daemon.
 The drivetemp kernel module is required.
+
+### Disk usage (BTRFS/ZFS)
+
+- `warn`/`crit` percentage of disk space used before it is considered a warning or critical level, default is 70% and 90% respectively
 
 ### Docker
 
 - `ignore` list of ignored container names
-- `useExec` get containers by parsing `docker` command output
+- `use_exec` get containers by parsing `docker` command output
 
 ### Podman
 
 - `ignore` list of ignored container names
 - `sudo` get root containers, you should be able to run `sudo podman` without a password
-- `includeSudo` includes both root and rootless containers
+- `include_sudo` includes both root and rootless containers
+
+### System information
+
+No extra config
 
 ### Systemd
 
 - `units` list of monitored units, must include file extension. This option must be set for the module to work.
-- `hideExt` hide the unit file extension when displaying their status
-- `inactiveOK` consider inactive units with exit code 0 as being OK, if false they will be considered warnings
-- `showFailed` display all failed units, similar to `systemctl --failed`
+- `hide_ext` hide the unit file extension when displaying their status
+- `inactive_ok` consider inactive units with exit code 0 as being OK, if false they will be considered warnings
+- `show_failed` display all failed units, similar to `systemctl --failed`
+
+### Updates
+
+- `show` displays the list of pending updates
+- `file` path to `go-check-updates` output yaml
 
 ## Adding more modules
 
@@ -122,16 +153,29 @@ const (
   examplePadR = "&"  // Default is ^R^
 )
 
-// Optional, can use CommonConf or CommonWithWarnConf
-type ExampleConf struct {
-  CommonConf `yaml:",inline"`
+// Optional, can use ConfBase or ConfBaseWarn
+// Recommended to use a struct, even if it only contains one of the base configs
+type ConfExample struct {
+  ConfBase `yaml:",inline"`
   More bool `yaml:"more"`
 }
 
-func GetExample(ret chan<- string, c *ExampleConf) {
+// Init is mandatory
+func (c *ConfExample) Init() {
+    // Highly recommended to call init on base
+    c.ConfBase.Init()
+    // Can change default padding here
+    // Set right padding for header to 2 spaces
+    c.PadHeader[1] = 2
+    // Set other defaults
+    c.More = true
+}
+
+
+func GetExample(ret chan<- string, c *ConfExample) {
   header, content, err := internalFunc(c.More)
   // Initialize Pad
-  var p = utils.Pad{Delims: map[string]int{examplePadL: c.Header[0], examplePadR: c.Header[1]}, Content: header}
+  var p = utils.Pad{Delims: map[string]int{examplePadL: c.PadHeader[0], examplePadR: c.PadHeader[1]}, Content: header}
   // Do() replaces the keys of the `Pad.Delims` map with value amount of spaces
   // For example `"$": 3` will replace `$` with 3 spaces.
   header = p.Do()
@@ -152,15 +196,14 @@ var defaultOrder = []string{..., "example"}
 
 type Conf struct {
   // Add your type to the Conf struct
-  Example datasources.ExampleConf
+  Example datasources.ConfExample
 }
 
 // Update Init()
 func (c *Conf) Init() {
-  // Init should be called, but adding defaults is optional
-  c.Example.CommonConf.Init()
-  // Set custom defaults
-  c.Example.More = true
+  // Init must be called to avoid likely panic 
+  // This is caused by uninitialized padding slices if they are not in the config file
+  c.Example.Init()
 }
 
 // Create Get method

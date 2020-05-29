@@ -10,18 +10,28 @@ import (
 	"github.com/cosandr/go-motd/utils"
 )
 
+type ConfBtrfs struct {
+	ConfBaseWarn `yaml:",inline"`
+}
+
+// Init sets up default alignment
+func (c *ConfBtrfs) Init() {
+	c.ConfBaseWarn.Init()
+	c.PadHeader[1] = 4
+}
+
 // GetBtrfs gets btrfs filesystem used and total space by reading files in /sys
-func GetBtrfs(ret chan<- string, c *CommonWithWarnConf) {
-	header, content, _ := getBtrfsStatus(c.Warn, c.Crit, *c.FailedOnly)
+func GetBtrfs(ret chan<- string, c *ConfBtrfs) {
+	header, content, _ := getBtrfsStatus(c.Warn, c.Crit, *c.WarnOnly)
 	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
 		ret <- header
 		return
 	}
 	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
 	content = p.Do()
 	ret <- header + "\n" + content
 }

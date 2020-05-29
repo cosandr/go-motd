@@ -1,66 +1,69 @@
-failedOnly: true
-# showOrder: [docker, sysinfo]
-colDef:
-  - [sysinfo]
-  - [updates]
-  - [docker, podman]
-  - [systemd]
-  - [cpu, disk]
-  - [zfs]
-  - [btrfs]
-colPad: 10
+global:
+  warnings_only: true
+  show_order: []
+  col_def:
+    - [sysinfo]
+    - [updates]
+    - [docker, podman]
+    - [systemd]
+    - [cpu, disk]
+    - [zfs]
+    - [btrfs]
+  col_pad: 10
 btrfs:
-  failedOnly: false
-  header: [0, 5]
-  content: [1, 3]
-cpu:
-  useExec: false
-  header: [0, 2]
-  content: [2, 2]
+  warnings_only: false
+  pad_header: [0, 5]
+  pad_content: [1, 3]
   warn: 70
   crit: 90
+cpu:
+  pad_header: [0, 2]
+  pad_content: [2, 2]
+  warn: 70
+  crit: 90
+  use_exec: false
 disk:
-  useSys: true
-  header: [0, 1]
-  content: [6, 1]
+  pad_header: [0, 1]
+  pad_content: [6, 1]
   warn: 40
   crit: 50
+  use_sys: true
 docker:
-  useExec: false
-  header: [0, 4]
-  content: [2, 1]
+  pad_header: [0, 4]
+  pad_content: [2, 1]
+  use_exec: false
   ignore:
-    - code-server
+  - code-server
 podman:
-  includeSudo: true
-  header: [0, 4]
-  content: [0, 1]
+  pad_header: [0, 4]
+  pad_content: [0, 1]
+  sudo: false
+  include_sudo: true
 sysinfo:
-  header: [0, 4]
+  pad_header: [0, 4]
+  pad_content: [0, 0]
 systemd:
-  failedOnly: false
-  header: [0, 3]
-  content: [2, 1]
-  hideExt: true
-  inactiveOK: false
-  showFailed: true
+  warnings_only: false
+  pad_header: [0, 3]
+  pad_content: [2, 1]
   units:
-    - nginx.service
-    - smb.service
-    - libvirtd.service
-    - firewalld.service
-    - fictional.service
-    - run-borg.timer
-    - var.mount
+  - nginx.service
+  - smb.service
+  - libvirtd.service
+  - firewalld.service
+  - fictional.service
+  - tmp.mount
+  hide_ext: true
+  inactive_ok: false
+  show_failed: true
 updates:
-  header: [0, 3]
-  content: [1, 0]
+  pad_header: [0, 4]
+  pad_content: [0, 1]
   show: false
   file: /tmp/go-check-updates.yaml
-  check: 24h
 zfs:
-  failedOnly: false
-  header: [0, 7]
-  content: [1, 5]
+  warnings_only: false
+  pad_header: [0, 7]
+  pad_content: [1, 5]
   warn: 70
   crit: 90

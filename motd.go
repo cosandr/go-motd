@@ -18,48 +18,47 @@ var (
 	defaultOrder   = []string{"sysinfo", "updates", "systemd", "docker", "podman", "disk", "cpu", "zfs", "btrfs"}
 )
 
-// Conf is the global config struct, defines YAML file
+// ConfGlobal is the config struct for global settings
+type ConfGlobal struct {
+	// Hide fields which are deemed to be OK
+	WarnOnly bool `yaml:"warnings_only"`
+	// Order in which to display data sources
+	ShowOrder []string `yaml:"show_order,flow,omitempty"`
+	// Define how data sources are displayed
+	ColDef [][]string `yaml:"col_def,flow,omitempty"`
+	// Padding between columns when using col_def
+	ColPad int `yaml:"col_pad"`
+}
+
+// Conf is the combined config struct, defines YAML file
 type Conf struct {
-	FailedOnly bool       `yaml:"failedOnly"`
-	ShowOrder  []string   `yaml:"showOrder"`
-	ColDef     [][]string `yaml:"colDef"`
-	ColPad     int        `yaml:"colPad"`
-	BTRFS      datasources.CommonWithWarnConf
-	CPU        datasources.CPUTempConf
-	Disk       datasources.DiskConf
-	Docker     datasources.DockerConf
-	Podman     datasources.PodmanConf
-	SysInfo    datasources.CommonConf
-	Systemd    datasources.SystemdConf
-	Updates    datasources.UpdatesConf
-	ZFS        datasources.CommonWithWarnConf
+	ConfGlobal `yaml:"global"`
+	BTRFS      datasources.ConfBtrfs    `yaml:"btrfs"`
+	CPU        datasources.ConfTempCPU  `yaml:"cpu"`
+	Disk       datasources.ConfTempDisk `yaml:"disk"`
+	Docker     datasources.ConfDocker   `yaml:"docker"`
+	Podman     datasources.ConfPodman   `yaml:"podman"`
+	SysInfo    datasources.ConfSysInfo  `yaml:"sysinfo"`
+	Systemd    datasources.ConfSystemd  `yaml:"systemd"`
+	Updates    datasources.ConfUpdates  `yaml:"updates"`
+	ZFS        datasources.ConfZFS      `yaml:"zfs"`
 }
 
 // Init a config with sane default values
 func (c *Conf) Init() {
-	// Init slices
-	c.BTRFS.CommonConf.Init()
-	c.CPU.CommonConf.Init()
-	c.Disk.CommonConf.Init()
-	c.Docker.CommonConf.Init()
-	c.Podman.CommonConf.Init()
-	c.SysInfo.Init()
-	c.Systemd.CommonConf.Init()
-	c.Updates.CommonConf.Init()
-	c.ZFS.CommonConf.Init()
-	// Set some defaults
-	c.BTRFS.Crit = 90
-	c.BTRFS.Warn = 70
+	// Set global defaults
+	c.WarnOnly = true
 	c.ColPad = 4
-	c.CPU.Crit = 90
-	c.CPU.Warn = 70
-	c.Disk.Crit = 50
-	c.Disk.Warn = 40
-	c.Systemd.ShowFailed = true
-	c.Updates.Check, _ = time.ParseDuration("24h")
-	c.Updates.File = "/tmp/go-check-updates.yaml"
-	c.ZFS.Crit = 90
-	c.ZFS.Warn = 70
+	// Init data source configs
+	c.BTRFS.Init()
+	c.CPU.Init()
+	c.Disk.Init()
+	c.Docker.Init()
+	c.Podman.Init()
+	c.SysInfo.Init()
+	c.Systemd.Init()
+	c.Updates.Init()
+	c.ZFS.Init()
 }
 
 func readCfg(path string) (c Conf, err error) {
@@ -78,45 +77,45 @@ func readCfg(path string) (c Conf, err error) {
 }
 
 func getBtrfs(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.BTRFS.FailedOnly == nil {
-		c.BTRFS.FailedOnly = &c.FailedOnly
+	// Check for warnOnly override
+	if c.BTRFS.WarnOnly == nil {
+		c.BTRFS.WarnOnly = &c.WarnOnly
 	}
 	datasources.GetBtrfs(ret, &c.BTRFS)
 	endTime <- time.Now()
 }
 
 func getCPUTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.CPU.FailedOnly == nil {
-		c.CPU.FailedOnly = &c.FailedOnly
+	// Check for warnOnly override
+	if c.CPU.WarnOnly == nil {
+		c.CPU.WarnOnly = &c.WarnOnly
 	}
 	datasources.GetCPUTemp(ret, &c.CPU)
 	endTime <- time.Now()
 }
 
 func getDiskTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.Disk.FailedOnly == nil {
-		c.Disk.FailedOnly = &c.FailedOnly
+	// Check for warnOnly override
+	if c.Disk.WarnOnly == nil {
+		c.Disk.WarnOnly = &c.WarnOnly
 	}
 	datasources.GetDiskTemps(ret, &c.Disk)
 	endTime <- time.Now()
 }
 
 func getDocker(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.Docker.FailedOnly == nil {
-		c.Docker.FailedOnly = &c.FailedOnly
+	// Check for warnOnly override
+	if c.Docker.WarnOnly == nil {
+		c.Docker.WarnOnly = &c.WarnOnly
 	}
 	datasources.GetDocker(ret, &c.Docker)
 	endTime <- time.Now()
 }
 
 func getPodman(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.Podman.FailedOnly == nil {
-		c.Podman.FailedOnly = &c.FailedOnly
+	// Check for warnOnly override
+	if c.Podman.WarnOnly == nil {
+		c.Podman.WarnOnly = &c.WarnOnly
 	}
 	datasources.GetPodman(ret, &c.Podman)
 	endTime <- time.Now()
@@ -128,27 +127,27 @@ func getSysInfo(ret chan<- string, c Conf, endTime chan<- time.Time) {
 }
 
 func getSystemD(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.Systemd.FailedOnly == nil {
-		c.Systemd.FailedOnly = &c.FailedOnly
+	// Check for warnOnly override
+	if c.Systemd.WarnOnly == nil {
+		c.Systemd.WarnOnly = &c.WarnOnly
 	}
 	datasources.GetSystemd(ret, &c.Systemd)
 	endTime <- time.Now()
 }
 
 func getUpdates(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
+	// Check for warnOnly override
 	if c.Updates.Show == nil {
-		c.Updates.Show = &c.FailedOnly
+		c.Updates.Show = &c.WarnOnly
 	}
 	datasources.GetUpdates(ret, &c.Updates)
 	endTime <- time.Now()
 }
 
 func getZFS(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for failedOnly override
-	if c.ZFS.FailedOnly == nil {
-		c.ZFS.FailedOnly = &c.FailedOnly
+	// Check for warnOnly override
+	if c.ZFS.WarnOnly == nil {
+		c.ZFS.WarnOnly = &c.WarnOnly
 	}
 	datasources.GetZFS(ret, &c.ZFS)
 	endTime <- time.Now()

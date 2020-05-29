@@ -14,15 +14,23 @@ const (
 	dockerMinAPI = "1.40"
 )
 
-// DockerConf extends CommonConf with a list of containers to ignore
-type DockerConf struct {
-	CommonConf `yaml:",inline"`
-	Exec       bool     `yaml:"useExec"`
-	Ignore     []string `yaml:"ignore"`
+// ConfDocker extends ConfBase with a list of containers to ignore
+type ConfDocker struct {
+	ConfBase `yaml:",inline"`
+	// Interact directly with the docker CLI, much slower than API
+	Exec bool `yaml:"use_exec"`
+	// List of container names to ignore
+	Ignore []string `yaml:"ignore,omitempty"`
+}
+
+// Init sets up default alignment
+func (c *ConfDocker) Init() {
+	c.ConfBase.Init()
+	c.PadHeader[1] = 3
 }
 
 // GetDocker docker container status using the API
-func GetDocker(ret chan<- string, c *DockerConf) {
+func GetDocker(ret chan<- string, c *ConfDocker) {
 	var err error
 	var cl containerList
 	var header string
@@ -35,17 +43,17 @@ func GetDocker(ret chan<- string, c *DockerConf) {
 	if err != nil {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Docker", padL, padR), utils.Warn("unavailable"))
 	} else {
-		header, content, _ = cl.toHeaderContent(c.Ignore, *c.FailedOnly)
+		header, content, _ = cl.toHeaderContent(c.Ignore, *c.WarnOnly)
 	}
 	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
 		ret <- header
 		return
 	}
 	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
 	content = p.Do()
 	ret <- header + "\n" + content
 }

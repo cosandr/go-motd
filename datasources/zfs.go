@@ -10,22 +10,32 @@ import (
 	"github.com/cosandr/go-motd/utils"
 )
 
+type ConfZFS struct {
+	ConfBaseWarn `yaml:",inline"`
+}
+
+// Init sets up default alignment
+func (c *ConfZFS) Init() {
+	c.ConfBaseWarn.Init()
+	c.PadHeader[1] = 6
+}
+
 // zpool list -Hpo name,alloc,size,health
 // tank    6277009096704   11991548690432   ONLINE
 // Sizes are in bytes
 
 // GetZFS runs `zpool list -Ho name,alloc,size,health` and parses the output
-func GetZFS(ret chan<- string, c *CommonWithWarnConf) {
-	header, content, _ := getPoolStatus(c.Warn, c.Crit, *c.FailedOnly)
+func GetZFS(ret chan<- string, c *ConfZFS) {
+	header, content, _ := getPoolStatus(c.Warn, c.Crit, *c.WarnOnly)
 	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
 		ret <- header
 		return
 	}
 	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
 	content = p.Do()
 	ret <- header + "\n" + content
 }

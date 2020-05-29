@@ -10,13 +10,24 @@ import (
 	"github.com/cosandr/go-motd/utils"
 )
 
-// SystemdConf extends CommonConf with a list of units to monitor
-type SystemdConf struct {
-	CommonConf `yaml:",inline"`
-	Units      []string `yaml:"units"`
-	HideExt    bool     `yaml:"hideExt"`
-	InactiveOK bool     `yaml:"inactiveOK"`
-	ShowFailed bool     `yaml:"showFailed"`
+// ConfSystemd extends ConfBase with a list of units to monitor
+type ConfSystemd struct {
+	ConfBase `yaml:",inline"`
+	// List of units to track, including extension
+	Units []string `yaml:"units,omitempty"`
+	// Remove extension when displaying units
+	HideExt bool `yaml:"hide_ext"`
+	// Consider inactive units OK
+	InactiveOK bool `yaml:"inactive_ok"`
+	// Get all failed units (in addition manually defined units above)
+	ShowFailed bool `yaml:"show_failed"`
+}
+
+// Init sets ShowFailed to true
+func (c *ConfSystemd) Init() {
+	c.ConfBase.Init()
+	c.PadHeader[1] = 2
+	c.ShowFailed = true
 }
 
 type systemdUnit struct {
@@ -66,23 +77,23 @@ func (s *systemdUnit) GetProperties(con *dbus.Conn) (err error) {
 }
 
 // GetSystemd gets systemd unit status using dbus
-func GetSystemd(ret chan<- string, c *SystemdConf) {
-	header, content, _ := getServiceStatus(c.Units, *c.FailedOnly, c.HideExt, c.InactiveOK, c.ShowFailed)
+func GetSystemd(ret chan<- string, c *ConfSystemd) {
+	header, content, _ := getServiceStatus(c.Units, *c.WarnOnly, c.HideExt, c.InactiveOK, c.ShowFailed)
 	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
 		ret <- header
 		return
 	}
 	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
 	content = p.Do()
 	ret <- header + "\n" + content
 }
 
 // getServiceStatus get service properties
-func getServiceStatus(reqUnits []string, failedOnly bool, hideExt bool, inactiveOK bool, showFailed bool) (header string, content string, err error) {
+func getServiceStatus(reqUnits []string, warnOnly bool, hideExt bool, inactiveOK bool, showFailed bool) (header string, content string, err error) {
 	con, err := dbus.New()
 	if err != nil {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Err("DBus failed"))
@@ -171,7 +182,7 @@ func getServiceStatus(reqUnits []string, failedOnly bool, hideExt bool, inactive
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Err("critical"))
 	} else if len(failedUnits) == 0 {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Systemd", padL, padR), utils.Good("OK"))
-		if failedOnly {
+		if warnOnly {
 			return
 		}
 	} else if len(failedUnits) < len(units) {
@@ -179,7 +190,7 @@ func getServiceStatus(reqUnits []string, failedOnly bool, hideExt bool, inactive
 	}
 	// Print all in order
 	for _, u := range units {
-		if val, ok := goodUnits[u.Name]; ok && !failedOnly {
+		if val, ok := goodUnits[u.Name]; ok && !warnOnly {
 			content += val
 		} else if val, ok := failedUnits[u.Name]; ok {
 			content += val

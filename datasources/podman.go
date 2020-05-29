@@ -7,16 +7,25 @@ import (
 	"github.com/cosandr/go-motd/utils"
 )
 
-// PodmanConf extends CommonConf with a list of containers to ignore
-type PodmanConf struct {
-	CommonConf  `yaml:",inline"`
-	Sudo        bool     `yaml:"sudo"`
-	IncludeSudo bool     `yaml:"includeSudo"`
-	Ignore      []string `yaml:"ignore"`
+// ConfPodman extends ConfBase with a list of containers to ignore
+type ConfPodman struct {
+	ConfBase `yaml:",inline"`
+	// Run podman using sudo, you should have NOPASSWD set for the podman command
+	Sudo bool `yaml:"sudo"`
+	// Run podman as both root and current user
+	IncludeSudo bool `yaml:"include_sudo"`
+	// List of container names to ignore
+	Ignore []string `yaml:"ignore,omitempty"`
+}
+
+// Init sets up default alignment
+func (c *ConfPodman) Init() {
+	c.ConfBase.Init()
+	c.PadHeader[1] = 3
 }
 
 // GetPodman podman container status by parsing cli output
-func GetPodman(ret chan<- string, c *PodmanConf) {
+func GetPodman(ret chan<- string, c *ConfPodman) {
 	var header string
 	var content string
 	// Check if we are root
@@ -31,7 +40,7 @@ func GetPodman(ret chan<- string, c *PodmanConf) {
 		if err != nil {
 			header = fmt.Sprintf("%s: %s\n", utils.Wrap("Podman", padL, padR), utils.Warn("unavailable"))
 		} else {
-			header, content, _ = cl.toHeaderContent(c.Ignore, *c.FailedOnly)
+			header, content, _ = cl.toHeaderContent(c.Ignore, *c.WarnOnly)
 		}
 	} else {
 		clUser, errUser := getContainersExec(true, false)
@@ -55,18 +64,18 @@ func GetPodman(ret chan<- string, c *PodmanConf) {
 		if len(cl.Containers) == 0 && (errUser != nil || errRoot != nil) {
 			header = fmt.Sprintf("%s: %s\n", utils.Wrap("Podman", padL, padR), utils.Warn("unavailable"))
 		} else {
-			header, content, _ = cl.toHeaderContent(c.Ignore, *c.FailedOnly)
+			header, content, _ = cl.toHeaderContent(c.Ignore, *c.WarnOnly)
 		}
 	}
 	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
 	header = p.Do()
 	if len(content) == 0 {
 		ret <- header
 		return
 	}
 	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.Content[0], padR: c.Content[1]}, Content: content}
+	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
 	content = p.Do()
 	ret <- header + "\n" + content
 }

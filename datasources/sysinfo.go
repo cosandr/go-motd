@@ -14,8 +14,17 @@ import (
 	"github.com/cosandr/go-motd/utils"
 )
 
+type ConfSysInfo struct {
+	ConfBase `yaml:",inline"`
+}
+
+func (c *ConfSysInfo) Init() {
+	c.PadHeader = []int{0, 3}
+	c.PadContent = []int{0, 0}
+}
+
 // GetSysInfo various stats about the host Linux OS (kernel, distro, load and more)
-func GetSysInfo(ret chan<- string, c *CommonConf) {
+func GetSysInfo(ret chan<- string, c *ConfSysInfo) {
 	var header string
 	type entry struct {
 		name    string
@@ -33,7 +42,7 @@ func GetSysInfo(ret chan<- string, c *CommonConf) {
 		header += fmt.Sprintf("%s: %s\n", utils.Wrap(e.name, padL, padR), e.content)
 	}
 	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.Header[0], padR: c.Header[1]}, Content: header}
+	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
 	header = p.Do()
 	ret <- header
 }

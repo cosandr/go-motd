@@ -5,25 +5,39 @@ const (
 	padR string = "^R^"
 )
 
-// CommonConf is the common type for all modules
+// ConfInterface defines the interface for config structs
+type ConfInterface interface {
+	Init()
+}
+
+// ConfBase is the common type for all modules
 //
 // Custom modules should respect these options
-type CommonConf struct {
-	FailedOnly *bool `yaml:"failedOnly,omitempty"`
-	Header     []int `yaml:"header"`
-	Content    []int `yaml:"content"`
+type ConfBase struct {
+	// Override global setting
+	WarnOnly *bool `yaml:"warnings_only,omitempty"`
+	// 2-element array defining padding for header (title)
+	PadHeader []int `yaml:"pad_header,flow"`
+	// 2-element array defining padding for content (details)
+	PadContent []int `yaml:"pad_content,flow"`
 }
 
-// Init sets `Header` and `Content` to [0, 0]
-func (c *CommonConf) Init() {
-	var defPad = []int{0, 0}
-	c.Content = defPad
-	c.Header = defPad
+// Init sets `PadHeader` and `PadContent` to [0, 0]
+func (c *ConfBase) Init() {
+	c.PadHeader = []int{0, 0}
+	c.PadContent = []int{1, 0}
 }
 
-// CommonWithWarnConf extends CommonConf with warning and critical values
-type CommonWithWarnConf struct {
-	CommonConf `yaml:",inline"`
-	Warn       int `yaml:"warn"`
-	Crit       int `yaml:"crit"`
+// ConfBaseWarn extends ConfBase with warning and critical values
+type ConfBaseWarn struct {
+	ConfBase `yaml:",inline"`
+	Warn     int `yaml:"warn"`
+	Crit     int `yaml:"crit"`
+}
+
+// Init sets warning to 70 and critical to 90
+func (c *ConfBaseWarn) Init() {
+	c.ConfBase.Init()
+	c.Warn = 70
+	c.Crit = 90
 }

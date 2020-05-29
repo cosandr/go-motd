@@ -19,7 +19,7 @@ type containerList struct {
 	Containers []containerStatus
 }
 
-func (cl *containerList) toHeaderContent(ignoreList []string, failedOnly bool) (header string, content string, err error) {
+func (cl *containerList) toHeaderContent(ignoreList []string, warnOnly bool) (header string, content string, err error) {
 	// Make set of ignored containers
 	var ignoreSet utils.StringSet
 	ignoreSet = ignoreSet.FromList(ignoreList)
@@ -46,7 +46,7 @@ func (cl *containerList) toHeaderContent(ignoreList []string, failedOnly bool) (
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap(cl.Runtime, padL, padR), utils.Err("critical"))
 	} else if len(failedCont) == 0 {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap(cl.Runtime, padL, padR), utils.Good("OK"))
-		if failedOnly {
+		if warnOnly {
 			return
 		}
 	} else if len(failedCont) < len(sortedNames) {
@@ -54,7 +54,7 @@ func (cl *containerList) toHeaderContent(ignoreList []string, failedOnly bool) (
 	}
 	// Only print all containers if requested
 	for _, c := range sortedNames {
-		if val, ok := goodCont[c]; ok && !failedOnly {
+		if val, ok := goodCont[c]; ok && !warnOnly {
 			content += fmt.Sprintf("%s: %s\n", utils.Wrap(c, padL, padR), utils.Good(val))
 		} else if val, ok := failedCont[c]; ok {
 			content += fmt.Sprintf("%s: %s\n", utils.Wrap(c, padL, padR), utils.Err(val))

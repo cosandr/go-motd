@@ -4,3 +4,7 @@ test
 *.log
 vendor
 .idea
+*.old
+tools/*.toml
+tools/*.yaml
+tools/tools
