@@ -79,7 +79,10 @@ PKG_PATH="$BIN_PATH/$PKG_NAME"
 
 case "$1" in
     install)
-        go build -o "$PKG_PATH" -ldflags "-X main.defaultCfgPath=${CFG_FILE}"
+        mkdir -p $(dirname "$CFG_FILE")
+        go build -o "$PKG_NAME" -ldflags "-X main.defaultCfgPath=${CFG_FILE}"
+        ./"${PKG_NAME}" -cfg /dev/null -dump-config "$CFG_FILE"
+        install -Dm 755 "$PKG_NAME" "$PKG_PATH"
         ;;
     pacman-build)
         rm -rf ./build
