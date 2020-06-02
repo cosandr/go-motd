@@ -109,8 +109,16 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 		content = fmt.Sprintf("%s\n", utils.Warn(r.Error))
 	}
 	if r.Queued != nil && *r.Queued == true {
-		header = fmt.Sprintf("%s: %d pending, refreshing\n", utils.Wrap("Updates", padL, padR), len(r.Data.Updates))
+		if r.Data == nil {
+			header = fmt.Sprintf("%s: No data, refreshing\n", utils.Wrap("Updates", padL, padR))
+		} else {
+			header = fmt.Sprintf("%s: %d pending, refreshing\n", utils.Wrap("Updates", padL, padR), len(r.Data.Updates))
+		}
 	} else {
+		if r.Data == nil {
+			header = fmt.Sprintf("%s: No data\n", utils.Wrap("Updates", padL, padR))
+			return
+		}
 		t, err := time.Parse(time.RFC3339, r.Data.Checked)
 		if err != nil {
 			header = fmt.Sprintf("%s: %d pending, cannot parse timestamp\n", utils.Wrap("Updates", padL, padR), len(r.Data.Updates))
@@ -119,7 +127,7 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 		header = fmt.Sprintf("%s: %d pending, checked %s ago\n",
 			utils.Wrap("Updates", padL, padR), len(r.Data.Updates), timeStr(timeElapsed, 2, c.ShortNames))
 	}
-	if c.Show == nil || *c.Show == false {
+	if r.Data == nil || c.Show == nil || *c.Show == false {
 		return
 	}
 	for _, u := range r.Data.Updates {
