@@ -30,23 +30,20 @@ pkgver() {
   ( set -o pipefail
     git describe --long 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
     printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
-  )   
+  )
 }
 
 build() {
     cd "${_pkgname}"
-    go get -d
-    # Static linked binary
-    # export CGO_ENABLED=0
-    # export GOOS=linux
-    # export GOARCH=amd64
-    go build -a -ldflags "-X main.defaultCfgPath=${_config_path}" -o "${_pkgname}" 
+    go mod vendor
+    go build -a -ldflags "-X main.defaultCfgPath=${_config_path}" -o "${_pkgname}"
 }
 
 package() {
     cd "${_pkgname}"
-    # install -dm 755 "${pkgdir}/etc/${_pkgname}"
-    install -Dm 644 "config.yaml" "${pkgdir}/${_config_path}"
+    install -dm 755 "${pkgdir}/etc/${_pkgname}"
+    # Generate default config
+    ./"${_pkgname}" -cfg /dev/null -dump-config "${pkgdir}/${_config_path}" > /dev/null
     install -Dm 755 "${_pkgname}" "${pkgdir}/usr/bin/${_pkgname}"
     install -Dm 644 LICENSE "${pkgdir}/usr/share/licenses/${_pkgname}/LICENSE"
 }

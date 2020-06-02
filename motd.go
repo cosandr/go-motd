@@ -245,7 +245,7 @@ func main() {
 	var flagDumpCfg bool
 	var flagCfg string
 	// Parse arguments
-	flag.StringVar(&flagCfg, "cfg", defaultCfgPath, "Path to config.yml file")
+	flag.StringVar(&flagCfg, "cfg", defaultCfgPath, "Path to yaml config file")
 	flag.BoolVar(&flagDebug, "debug", false, "Debug mode")
 	flag.BoolVar(&flagUpdates, "updates", false, "Show list of pending updates only")
 	flag.BoolVar(&flagDumpCfg, "dump-config", false, "Dump config to stdout or provided filepath")
