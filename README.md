@@ -136,7 +136,10 @@ No extra config
 ### Updates
 
 - `show` displays the list of pending updates
-- `file` path to `go-check-updates` output yaml
+- `short_names` use short names for time values (1h5m instead of 1 hour, 5 min)
+- `address` listen address of go-check-updates, can be unix socket
+- `every` request cache update if it is older than this duration
+- `file` path to `go-check-updates` output json, setting this will not use the API at all
 
 ## Adding more modules
 

@@ -279,6 +279,7 @@ func main() {
 		c.Updates.Init()
 		// Set show to true
 		c.Updates.Show = &flagUpdates
+		c.Updates.PadHeader = []int{0, 0}
 		// Only show updates
 		printOrder = []string{"updates"}
 	}

@@ -14,8 +14,14 @@ github.com/containerd/containerd v1.3.4 h1:3o0smo5SKY7H6AJCmJhsnCjR2/V2T8VmiHt7s
 github.com/containerd/containerd v1.3.4/go.mod h1:bC6axHOhabU15QhwfG7w5PipXdVtMXFTttgp+kVtyUA=
 github.com/coreos/go-systemd/v22 v22.0.0 h1:XJIw/+VlJ+87J+doOxznsAWIdmWuViOVhkQamW5YV28=
 github.com/coreos/go-systemd/v22 v22.0.0/go.mod h1:xO0FLkIi5MaZafQlIrOotqXZ90ih+1atmu1JpKERPPk=
-github.com/cosandr/go-check-updates/types v0.0.0-20200415091155-9925192bf4fa h1:C9ZijNJD3PAx/mXIvdgrVBU/PkozgTueNIBIVF4eKNk=
-github.com/cosandr/go-check-updates/types v0.0.0-20200415091155-9925192bf4fa/go.mod h1:Bw8ZdF1VVMsLHzQwpMyI5GK+ltripx3TwJ911CF9VnQ=
+github.com/coreos/go-systemd/v22 v22.1.0 h1:kq/SbG2BCKLkDKkjQf5OWwKWUKj1lgs3lFI4PxnR5lg=
+github.com/coreos/go-systemd/v22 v22.1.0/go.mod h1:xO0FLkIi5MaZafQlIrOotqXZ90ih+1atmu1JpKERPPk=
+github.com/cosandr/go-check-updates v0.0.0-20200601162614-385230dc4d68 h1:p/6h4HySo1luao3ECAPWnOUZRWuxLKY/GSFh1SihNDE=
+github.com/cosandr/go-check-updates v0.0.0-20200601162614-385230dc4d68/go.mod h1:gEd4aed8kkm23sZTgiZLA1bwkVhl/WEQM9rUME9Yyf4=
+github.com/cosandr/go-check-updates v0.0.0-20200601175353-7e0ef2f11fc4 h1:spIo2hc8XbGydDoupTtplZluhn3wxlSpqDKk9otRXpA=
+github.com/cosandr/go-check-updates v0.0.0-20200601175353-7e0ef2f11fc4/go.mod h1:gEd4aed8kkm23sZTgiZLA1bwkVhl/WEQM9rUME9Yyf4=
+github.com/cosandr/go-check-updates v0.0.0-20200602115520-a4735be3afb9 h1:bRPV7Y3vGH+7k73n8SWJS9QQ9nCQFn8ixekHaDWYhpk=
+github.com/cosandr/go-check-updates v0.0.0-20200602115520-a4735be3afb9/go.mod h1:gEd4aed8kkm23sZTgiZLA1bwkVhl/WEQM9rUME9Yyf4=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

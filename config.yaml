@@ -57,10 +57,13 @@ systemd:
   inactive_ok: false
   show_failed: true
 updates:
-  pad_header: [0, 4]
+  pad_header: [0, 3]
   pad_content: [0, 1]
   show: false
-  file: /tmp/go-check-updates.yaml
+  short_names: true
+  address: /run/go-check-updates.sock
+  every: 1h
+#  file: /tmp/go-check-updates.json
 zfs:
   warnings_only: false
   pad_header: [0, 7]

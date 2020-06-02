@@ -7,8 +7,8 @@ require (
 	github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/containerd/containerd v1.3.4 // indirect
-	github.com/coreos/go-systemd/v22 v22.0.0
-	github.com/cosandr/go-check-updates/types v0.0.0-20200415091155-9925192bf4fa
+	github.com/coreos/go-systemd/v22 v22.1.0
+	github.com/cosandr/go-check-updates v0.0.0-20200602115520-a4735be3afb9
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200512045606-ab567a4327f8+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
