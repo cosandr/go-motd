@@ -2,6 +2,7 @@ package datasources
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -48,51 +49,53 @@ func (c *ConfBaseWarn) Init() {
 	c.Crit = 90
 }
 
+type timeEntry struct {
+	short string
+	long  string
+}
+
 // timeStr returns human friendly time durations
 func timeStr(d time.Duration, precision int, short bool) string {
-	times := map[string]int{
-		"year":   int(3.154e7),
-		"month":  int(2.628e6),
-		"week":   604800,
-		"day":    86400,
-		"hour":   3600,
-		"minute": 60,
-		"second": 1,
+	times := map[int]timeEntry{
+		1:            {"s", "second"},
+		60:           {"m", "minute"},
+		3600:         {"h", "hour"},
+		86400:        {"d", "day"},
+		604800:       {"w", "week"},
+		int(2.628e6): {"mo", "month"},
+		int(3.154e7): {"yr", "year"},
 	}
-	shortNames := map[string]string{
-		"year":   "yr",
-		"month":  "mo",
-		"week":   "w",
-		"day":    "d",
-		"hour":   "h",
-		"minute": "m",
-		"second": "s",
+	// Sort keys to ensure proper order
+	keys := make([]int, 0)
+	for k := range times {
+		keys = append(keys, k)
 	}
+	sort.Sort(sort.Reverse(sort.IntSlice(keys)))
 	seconds := int(d.Seconds())
 	if seconds < 1 {
 		return "just now"
 	}
 	var ret string
 	var tmp int
-	for name, val := range times {
+	for _, k := range keys {
 		if tmp >= precision {
 			break
 		}
-		q := seconds / val
-		r := seconds % val
+		q := seconds / k
+		r := seconds % k
 		// We have <1 of this unit
 		if q == 0 {
 			continue
 		}
 		if short {
-			ret += fmt.Sprintf("%d%s", q, shortNames[name])
+			ret += fmt.Sprintf("%d%s", q, times[k].short)
 		} else {
 			if q == 1 {
 				// We have one, don't add s
-				ret += fmt.Sprintf("%d %s, ", q, name)
+				ret += fmt.Sprintf("%d %s, ", q, times[k].long)
 			} else {
 				// More than one or zero, add s at the end
-				ret += fmt.Sprintf("%d %ss, ", q, name)
+				ret += fmt.Sprintf("%d %ss, ", q, times[k].long)
 			}
 		}
 		seconds = r
