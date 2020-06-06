@@ -81,7 +81,9 @@ case "$1" in
     install)
         mkdir -p $(dirname "$CFG_FILE")
         go build -o "$PKG_NAME" -ldflags "-X main.defaultCfgPath=${CFG_FILE}"
-        ./"${PKG_NAME}" -cfg /dev/null -dump-config "$CFG_FILE"
+        if [[ ! -f "$CFG_FILE" ]]; then
+            ./"${PKG_NAME}" -cfg /dev/null -dump-config "$CFG_FILE"
+        fi
         install -Dm 755 "$PKG_NAME" "$PKG_PATH"
         ;;
     pacman-build)
