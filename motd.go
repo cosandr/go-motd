@@ -271,17 +271,17 @@ func main() {
 		return
 	}
 
-	// Flatten colDef and check for invalid module names
-	var printOrder = makePrintOrder(&c)
+	var printOrder []string
 
 	if flagUpdates {
-		// Ignore config (no padding)
-		c.Updates.Init()
 		// Set show to true
 		c.Updates.Show = &flagUpdates
 		c.Updates.PadHeader = []int{0, 0}
 		// Only show updates
 		printOrder = []string{"updates"}
+	} else {
+		// Flatten colDef and check for invalid module names
+		printOrder = makePrintOrder(&c)
 	}
 
 	var endTimes = make(map[string]chan time.Time)
