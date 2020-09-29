@@ -6,9 +6,9 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
-	github.com/containerd/containerd v1.3.4 // indirect
+	github.com/containerd/containerd v1.4.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.1.0
-	github.com/cosandr/go-check-updates v0.0.0-20200602115520-a4735be3afb9
+	github.com/cosandr/go-check-updates v0.0.0-20200910180852-a74b5c121328
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200512045606-ab567a4327f8+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -24,16 +24,17 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/shirou/gopsutil v2.20.4+incompatible
-	github.com/sirupsen/logrus v1.6.0 // indirect
+	github.com/shirou/gopsutil v2.20.8+incompatible
+	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/stretchr/testify v1.5.1 // indirect
-	golang.org/x/net v0.0.0-20200513185701-a91f0712d120 // indirect
-	golang.org/x/sys v0.0.0-20200515095857-1151b9dac4a9 // indirect
+	golang.org/x/net v0.0.0-20200927032502-5d4f70055728 // indirect
+	golang.org/x/sys v0.0.0-20200929083018-4d22bbb62b3c // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
-	google.golang.org/genproto v0.0.0-20200515170657-fc4c6c6a6587 // indirect
-	google.golang.org/grpc v1.29.1 // indirect
-	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
+	google.golang.org/genproto v0.0.0-20200929141702-51c3e5b607fe // indirect
+	google.golang.org/grpc v1.32.0 // indirect
+	google.golang.org/protobuf v1.25.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
 	gopkg.in/yaml.v2 v2.3.0
 	gotest.tools v2.2.0+incompatible // indirect
 )
