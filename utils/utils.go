@@ -1,6 +1,14 @@
 package utils
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
+
+var (
+	// DebugMode enables debug messages across modules
+	DebugMode bool
+)
 
 const (
 	tebibyte float64 = 1099511627776
@@ -29,4 +37,10 @@ func FormatBytes(sizeBytes float64) string {
 		return fmt.Sprintf("%.2f KB", sizeBytes/kebibyte)
 	}
 	return fmt.Sprintf("%.2f B", sizeBytes)
+}
+
+// PrettyPrint a struct, used for debugging
+func PrettyPrint(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", " ")
+	return string(s)
 }

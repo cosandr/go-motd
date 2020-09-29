@@ -12,6 +12,7 @@ import (
 
 	"github.com/cosandr/go-check-updates/api"
 	"github.com/cosandr/go-motd/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 // ConfUpdates extends ConfBase with a show toggle (same as warnOnly), path to file and how often to check
@@ -63,10 +64,13 @@ func GetUpdates(ret chan<- string, c *ConfUpdates) {
 func getUpdatesResponse(addr string, url string) (header string, result api.Response, err error) {
 	var client http.Client
 	var connType string
+	log.Debugf("[updates] request URL: %s", url)
 	if strings.HasPrefix(addr, "/") {
 		connType = "unix"
+		log.Debugf("[updates] unix connection to %s", addr)
 	} else {
 		connType = "tcp"
+		log.Debugf("[updates] tcp connection to %s", addr)
 	}
 	client = http.Client{
 		Timeout: 1 * time.Second,
@@ -78,16 +82,20 @@ func getUpdatesResponse(addr string, url string) (header string, result api.Resp
 	}
 	resp, err := client.Get(url)
 	if err != nil {
+		log.Warnf("[updates] connection failed %v", err)
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Updates", padL, padR), utils.Warn("unavailable"))
 		return
 	}
 	defer resp.Body.Close()
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
+		log.Warnf("[updates] cannot decode response %v", err)
 		header = fmt.Sprintf("%s: %s (%v)\n", utils.Wrap("Updates", padL, padR), utils.Warn("Cannot decode response"), err)
 		return
 	}
+	log.Debugf("[updates] response:\n%s", utils.PrettyPrint(&result))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Warnf("[updates] invalid response code %s", resp.Status)
 		header = fmt.Sprintf("%s: %s (%s)\n", utils.Wrap("Updates", padL, padR), utils.Warn("Invalid response"), resp.Status)
 		return
 	}
@@ -97,15 +105,16 @@ func getUpdatesResponse(addr string, url string) (header string, result api.Resp
 // getUpdatesAPI gets currently cached updates and queues an update if needed
 func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 	var r api.Response
-	reqUrl := "http://con/api?updates"
+	reqURL := "http://con/api?updates"
 	if c.Every != "" {
-		reqUrl += fmt.Sprintf("&refresh&immediate&every=%s", c.Every)
+		reqURL += fmt.Sprintf("&refresh&immediate&every=%s", c.Every)
 	}
-	header, r, err = getUpdatesResponse(c.Address, reqUrl)
+	header, r, err = getUpdatesResponse(c.Address, reqURL)
 	if err != nil {
 		return
 	}
 	if r.Error != "" {
+		log.Warnf("[updates] response contains error %s", r.Error)
 		content = fmt.Sprintf("%s\n", utils.Warn(r.Error))
 	}
 	if r.Queued != nil && *r.Queued == true {
@@ -121,6 +130,7 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 		}
 		t, err := time.Parse(time.RFC3339, r.Data.Checked)
 		if err != nil {
+			log.Warnf("[updates] cannot parse timestamp %s: %v", r.Data.Checked, err)
 			header = fmt.Sprintf("%s: %d pending, cannot parse timestamp\n", utils.Wrap("Updates", padL, padR), len(r.Data.Updates))
 		}
 		var timeElapsed = time.Since(t)

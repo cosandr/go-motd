@@ -4,12 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/cosandr/go-motd/datasources"
 	"github.com/cosandr/go-motd/utils"
 	"github.com/olekukonko/tablewriter"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -215,7 +217,7 @@ func makePrintOrder(c *Conf) (printOrder []string) {
 					printOrder = append(printOrder, k)
 					tmp = append(tmp, k)
 				} else {
-					fmt.Printf("Unknown module %s\n", k)
+					log.Warnf("Unknown module %s", k)
 				}
 			}
 			if tmp != nil {
@@ -228,7 +230,7 @@ func makePrintOrder(c *Conf) (printOrder []string) {
 			if checkSet.Contains(k) {
 				printOrder = append(printOrder, k)
 			} else {
-				fmt.Printf("Unknown module %s\n", k)
+				log.Warnf("Unknown module %s", k)
 			}
 		}
 	} else {
@@ -240,29 +242,37 @@ func makePrintOrder(c *Conf) (printOrder []string) {
 }
 
 func main() {
-	var flagDebug bool
 	var flagUpdates bool
 	var flagDumpCfg bool
 	var flagCfg string
 	// Parse arguments
 	flag.StringVar(&flagCfg, "cfg", defaultCfgPath, "Path to yaml config file")
-	flag.BoolVar(&flagDebug, "debug", false, "Debug mode")
+	flag.BoolVar(&utils.DebugMode, "debug", false, "Debug mode")
 	flag.BoolVar(&flagUpdates, "updates", false, "Show list of pending updates only")
 	flag.BoolVar(&flagDumpCfg, "dump-config", false, "Dump config to stdout or provided filepath")
 	flag.Parse()
 
+	log.SetFormatter(&log.TextFormatter{DisableTimestamp: true})
+	log.SetOutput(os.Stderr)
+	if utils.DebugMode {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.WarnLevel)
+	}
+
 	var startTimes map[string]time.Time
-	if flagDebug {
+	if utils.DebugMode {
 		startTimes = make(map[string]time.Time)
 		startTimes["MAIN"] = time.Now()
 	}
 	// Read config file
 	c, err := readCfg(flagCfg)
 	if err != nil {
-		fmt.Println(err)
+		log.Warn(err)
 	}
 
 	if flagDumpCfg {
+		log.Info("Dumping config")
 		if flag.NArg() > 0 {
 			dumpConfig(&c, flag.Arg(0))
 		} else {
@@ -274,6 +284,7 @@ func main() {
 	var printOrder []string
 
 	if flagUpdates {
+		log.Debug("Show only updates")
 		// Set show to true
 		c.Updates.Show = &flagUpdates
 		c.Updates.PadHeader = []int{0, 0}
@@ -290,13 +301,14 @@ func main() {
 	var outCh = make(map[string]chan string)
 	for _, k := range printOrder {
 		outCh[k] = make(chan string, 1)
-		if flagDebug {
+		if utils.DebugMode {
 			endTimes[k] = make(chan time.Time, 1)
 		}
 	}
 
+	log.Debug("Start data collection goroutines")
 	for _, k := range printOrder {
-		if flagDebug {
+		if utils.DebugMode {
 			startTimes[k] = time.Now()
 		}
 		switch k {
@@ -320,30 +332,33 @@ func main() {
 			go getZFS(outCh[k], c, endTimes[k])
 		default:
 			// Critical failure
-			panic(fmt.Errorf("no case for %s", k))
+			log.Panicf("no case for %s", k)
 		}
 	}
 
 	var outStr = make(map[string]string)
 	// Wait and print results
+	log.Debug("Wait for goroutines")
 	for _, k := range printOrder {
 		outStr[k] = <-outCh[k]
 	}
 	if len(c.ColDef) > 0 {
+		log.Debug("Format as table")
 		outBuf := &strings.Builder{}
 		mapToTable(outStr, c.ColDef, outBuf, c.ColPad)
 		fmt.Print(outBuf.String())
 	} else {
+		log.Debug("Print as is")
 		for _, k := range printOrder {
 			fmt.Println(outStr[k])
 		}
 	}
 	// Show timing results
-	if flagDebug {
+	if utils.DebugMode {
 		endTimes["MAIN"] <- time.Now()
 		printOrder = append(printOrder, "MAIN")
 		for _, k := range printOrder {
-			fmt.Printf("%s ran in: %s\n", k, (<-endTimes[k]).Sub(startTimes[k]).String())
+			log.Debugf("%s ran in: %s\n", k, (<-endTimes[k]).Sub(startTimes[k]).String())
 		}
 	}
 }
@@ -351,16 +366,16 @@ func main() {
 func dumpConfig(c *Conf, writeFile string) {
 	d, err := yaml.Marshal(c)
 	if err != nil {
-		fmt.Printf("Config parse error: %v\n", err)
+		log.Errorf("Config parse error: %v", err)
 		return
 	}
 	if writeFile != "" {
 		err = ioutil.WriteFile(writeFile, d, 0644)
 		if err != nil {
-			fmt.Printf("Config dumped failed: %v\n", err)
+			log.Errorf("Config dumped failed: %v", err)
 			return
 		}
-		fmt.Printf("Config dumped to: %s\n", writeFile)
+		log.Infof("Config dumped to: %s", writeFile)
 	} else {
 		fmt.Printf("%s\n", string(d))
 	}
