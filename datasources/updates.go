@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/cosandr/go-check-updates/api"
-	"github.com/cosandr/go-motd/utils"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/cosandr/go-motd/utils"
 )
 
 // ConfUpdates extends ConfBase with a show toggle (same as warnOnly), path to file and how often to check
@@ -140,9 +141,7 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 	if r.Data == nil || c.Show == nil || *c.Show == false {
 		return
 	}
-	for _, u := range r.Data.Updates {
-		content += fmt.Sprintf("%s -> %s\n", utils.Wrap(u.Pkg, padL, padR), u.NewVer)
-	}
+	content += fmt.Sprint(utils.Wrap(r.Data.String(), padL, padR))
 	return
 }
 
@@ -170,8 +169,6 @@ func getUpdatesFile(c *ConfUpdates) (header string, content string, err error) {
 	if c.Show == nil || *c.Show == false {
 		return
 	}
-	for _, u := range data.Updates {
-		content += fmt.Sprintf("%s -> %s\n", utils.Wrap(u.Pkg, padL, padR), u.NewVer)
-	}
+	content += fmt.Sprint(utils.Wrap(data.String(), padL, padR))
 	return
 }
