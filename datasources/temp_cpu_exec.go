@@ -3,80 +3,64 @@ package datasources
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os/exec"
 	"regexp"
-	"sort"
-	"strconv"
 
-	"github.com/cosandr/go-motd/utils"
+	log "github.com/sirupsen/logrus"
 )
 
-func cpuTempSensors(warnTemp int, critTemp int, warnOnly bool) (header string, content string, err error) {
+func cpuTempSensors() (tempMap map[string]int, isZen bool, err error) {
 	var buf bytes.Buffer
 	cmd := exec.Command("sensors", "-j")
 	cmd.Stdout = &buf
 	err = cmd.Run()
 	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("unavailable"))
 		return
 	}
 	var result map[string]interface{}
 	err = json.Unmarshal(buf.Bytes(), &result)
 	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("sensors parse failed"))
+		log.Warnf("[cpu] sensors parse failed: %v", err)
 		return
 	}
 
-	reAllCores := regexp.MustCompile(`coretemp\S*`)
-	reCore := regexp.MustCompile(`Core\s(\d+)`)
+	tempMap = make(map[string]int)
 	reTemp := regexp.MustCompile(`temp\d+_input`)
-
-	var tempMap = make(map[int]int)
-	var sortedCPUs []int
-
-	for k, v := range result {
-		// Found all core temps ("coretemp-isa-0000")
-		if m := reAllCores.FindStringIndex(k); len(m) > 0 {
-			for core, temps := range v.(map[string]interface{}) {
-				// Found core temps ("Core 0")
-				if mc := reCore.FindStringSubmatch(core); len(mc) > 0 {
-					for kk, temp := range temps.(map[string]interface{}) {
-						// Found correct temperature value ("temp2_input")
-						if mt := reTemp.FindStringIndex(kk); len(mt) > 0 {
-							coreNum, _ := strconv.Atoi(mc[1])
-							tempMap[coreNum] = int(temp.(float64))
-							sortedCPUs = append(sortedCPUs, coreNum)
+	addTemp := func(reModule *regexp.Regexp, reName *regexp.Regexp) {
+		for k, v := range result {
+			// Intel: Found all core temps "coretemp-isa-0000"
+			// AMD: Found k10temp "k10temp-pci-00c3"
+			if m := reModule.FindStringIndex(k); len(m) > 0 {
+				for core, temps := range v.(map[string]interface{}) {
+					// Intel: Found core temps ("Core 0")
+					// AMD: Found tctl, tdie or tccd
+					if mc := reName.FindStringSubmatch(core); len(mc) > 0 {
+						for kk, temp := range temps.(map[string]interface{}) {
+							// Found correct temperature value ("temp2_input")
+							if mt := reTemp.FindStringIndex(kk); len(mt) > 0 {
+								tempMap[mc[1]] = int(temp.(float64))
+							}
 						}
 					}
 				}
+				break
 			}
-			break
 		}
 	}
-	sort.Ints(sortedCPUs)
-	var warnCount int
-	var errCount int
-	for _, k := range sortedCPUs {
-		var v = tempMap[k]
-		var wrapped = utils.Wrap(fmt.Sprintf("Core %d", k), padL, padR)
-		if v < warnTemp && !warnOnly {
-			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Good(v))
-		} else if v >= warnTemp && v < critTemp {
-			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Warn(v))
-			warnCount++
-		} else if v >= critTemp {
-			warnCount++
-			errCount++
-			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Err(v))
-		}
+	// Try Intel
+	addTemp(regexp.MustCompile(`coretemp\S*`), regexp.MustCompile(`Core\s(\d+)`))
+
+	// Try k10temp if we didn't find anything
+	if len(tempMap) == 0 {
+		isZen = true
+		log.Debug("[cpu] trying k10temp")
+		addTemp(regexp.MustCompile(`k10temp\S*`), regexp.MustCompile(`(?i)(tctl|tdie|tccd\d+)`))
 	}
-	if warnCount == 0 {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Good("OK"))
-	} else if errCount > 0 {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Err("Critical"))
-	} else if warnCount > 0 {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("Warning"))
+	// Something's really wrong if we still have none
+	if len(tempMap) == 0 {
+		log.Warn("[cpu] could not find any CPU temperatures")
+	} else {
+		err = nil
 	}
 	return
 }

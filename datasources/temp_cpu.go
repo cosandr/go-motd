@@ -6,7 +6,8 @@ import (
 	"sort"
 
 	"github.com/cosandr/go-motd/utils"
-	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/v3/host"
+	log "github.com/sirupsen/logrus"
 )
 
 // ConfTempCPU extends ConfBase with a list of containers to ignore
@@ -26,10 +27,21 @@ func (c *ConfTempCPU) Init() {
 func GetCPUTemp(ret chan<- string, c *ConfTempCPU) {
 	var header string
 	var content string
+	var tempMap map[string]int
+	var isZen bool
+	var err error
 	if c.Exec {
-		header, content, _ = cpuTempSensors(c.Warn, c.Crit, *c.WarnOnly)
+		tempMap, isZen, err = cpuTempSensors()
 	} else {
-		header, content, _ = cpuTempGopsutil(c.Warn, c.Crit, *c.WarnOnly)
+		tempMap, isZen, err = cpuTempGopsutil()
+	}
+	if err != nil {
+		log.Warnf("[cpu] temperature read error: %v", err)
+	}
+	if len(tempMap) == 0 {
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("unavailable"))
+	} else {
+		header, content, _ = formatCPUTemps(tempMap, isZen, c.Warn, c.Crit, *c.WarnOnly)
 	}
 	// Pad header
 	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
@@ -44,28 +56,25 @@ func GetCPUTemp(ret chan<- string, c *ConfTempCPU) {
 	ret <- header + "\n" + content
 }
 
-func cpuTempGopsutil(warnTemp int, critTemp int, warnOnly bool) (header string, content string, err error) {
-	temps, err := host.SensorsTemperatures()
-	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("unavailable"))
-		return
+func formatCPUTemps(tempMap map[string]int, isZen bool, warnTemp int, critTemp int, warnOnly bool) (header string, content string, err error) {
+	// Sort keys
+	sortedNames := make([]string, len(tempMap))
+	i := 0
+	for k := range tempMap {
+		sortedNames[i] = k
+		i++
 	}
-	reCore := regexp.MustCompile(`coretemp_core(\d+)_input`)
-	var tempMap = make(map[string]int)
-	var sortedCPUs []string
-	for _, stat := range temps {
-		m := reCore.FindStringSubmatch(stat.SensorKey)
-		if len(m) > 1 {
-			tempMap[m[1]] = int(stat.Temperature)
-			sortedCPUs = append(sortedCPUs, m[1])
-		}
-	}
-	sort.Strings(sortedCPUs)
+	sort.Strings(sortedNames)
 	var warnCount int
 	var errCount int
-	for _, k := range sortedCPUs {
-		var v = tempMap[k]
-		var wrapped = utils.Wrap(fmt.Sprintf("Core %s", k), padL, padR)
+	for _, k := range sortedNames {
+		v := tempMap[k]
+		var wrapped string
+		if !isZen {
+			wrapped = utils.Wrap(fmt.Sprintf("Core %s", k), padL, padR)
+		} else {
+			wrapped = utils.Wrap(k, padL, padR)
+		}
 		if v < warnTemp && !warnOnly {
 			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Good(v))
 		} else if v >= warnTemp && v < critTemp {
@@ -83,6 +92,33 @@ func cpuTempGopsutil(warnTemp int, critTemp int, warnOnly bool) (header string, 
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Err("Critical"))
 	} else if warnCount > 0 {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("Warning"))
+	}
+	return
+}
+
+func cpuTempGopsutil() (tempMap map[string]int, isZen bool, err error) {
+	temps, err := host.SensorsTemperatures()
+	tempMap = make(map[string]int)
+	addTemp := func(re *regexp.Regexp) {
+		for _, stat := range temps {
+			m := re.FindStringSubmatch(stat.SensorKey)
+			if len(m) > 1 {
+				tempMap[m[1]] = int(stat.Temperature)
+			}
+		}
+	}
+	addTemp(regexp.MustCompile(`coretemp_core(\d+)`))
+	// Try k10temp if we didn't find anything
+	if len(tempMap) == 0 {
+		isZen = true
+		log.Debug("[cpu] trying k10temp")
+		addTemp(regexp.MustCompile(`k10temp_(\w+)`))
+	}
+	// Something's really wrong if we still have none
+	if len(tempMap) == 0 {
+		log.Warn("[cpu] could not find any CPU temperatures")
+	} else {
+		err = nil
 	}
 	return
 }
