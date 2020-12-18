@@ -4,6 +4,7 @@
 
 pkgname=go-motd-git
 _pkgname="${pkgname%-git}"
+_config_path="etc/${_pkgname}/config.yaml"
 pkgver=f07595b
 pkgrel=1
 pkgdesc="Dynamic MOTD written in Go"
@@ -22,8 +23,7 @@ optdepends=(
 makedepends=("git" "go")
 source=("git+$url")
 md5sums=("SKIP")
-
-_config_path="/etc/${_pkgname}/config.yaml"
+backup=("$_config_path")
 
 pkgver() {
     cd "${_pkgname}"
@@ -36,14 +36,15 @@ pkgver() {
 build() {
     cd "${_pkgname}"
     go mod vendor
-    go build -a -ldflags "-X main.defaultCfgPath=${_config_path}" -o "${_pkgname}"
+    go build -a -ldflags "-X main.defaultCfgPath=/${_config_path}" -o "${_pkgname}"
+    # Generate default config
+    ./"${_pkgname}" -cfg /dev/null -dump-config "default-config.yaml" > /dev/null
 }
 
 package() {
     cd "${_pkgname}"
     install -dm 755 "${pkgdir}/etc/${_pkgname}"
-    # Generate default config
-    ./"${_pkgname}" -cfg /dev/null -dump-config "${pkgdir}/${_config_path}" > /dev/null
+    install -Dm 644 "default-config.yaml" "${pkgdir}/${_config_path}"
     install -Dm 755 "${_pkgname}" "${pkgdir}/usr/bin/${_pkgname}"
     install -Dm 644 LICENSE "${pkgdir}/usr/share/licenses/${_pkgname}/LICENSE"
 }
