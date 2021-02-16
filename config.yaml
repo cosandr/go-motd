@@ -11,6 +11,10 @@ global:
     - [btrfs]
   col_pad: 10
 btrfs:
+  show_free: true
+  use_exec: false
+  sudo: true
+  btrfs_cmd: "btrfs-us --raw"
   warnings_only: false
   pad_header: [0, 5]
   pad_content: [1, 3]

@@ -111,6 +111,22 @@ The drivetemp kernel module is required.
 
 - `warn`/`crit` percentage of disk space used before it is considered a warning or critical level, default is 70% and 90% respectively
 
+### BTRFS
+
+- `show_free` show free space instead of used
+- `use_exec` get BTRFS filesystem info by parsing `btrfs filesystem usage --raw`
+- `sudo` use `sudo btrfs` commands, required for accurate RAID56 data
+- `btrfs_cmd` override btrfs command, useful for wrapper scripts. For example:
+
+```
+# visudo -f /etc/sudoers.d/btrfs-us
+andrei ALL=(root) NOPASSWD: /usr/bin/btrfs-us
+# cat /usr/bin/btrfs-us
+#!/bin/sh
+
+btrfs filesystem usage $@
+```
+
 ### Docker
 
 - `ignore` list of ignored container names
