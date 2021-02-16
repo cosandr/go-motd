@@ -101,13 +101,15 @@ func cpuTempGopsutil() (tempMap map[string]int, isZen bool, err error) {
 	tempMap = make(map[string]int)
 	addTemp := func(re *regexp.Regexp) {
 		for _, stat := range temps {
+			log.Debugf("[cpu] check %s", stat.SensorKey)
 			m := re.FindStringSubmatch(stat.SensorKey)
 			if len(m) > 1 {
+				log.Debugf("[cpu] OK %s: %.0f", stat.SensorKey, stat.Temperature)
 				tempMap[m[1]] = int(stat.Temperature)
 			}
 		}
 	}
-	addTemp(regexp.MustCompile(`coretemp_core(\d+)`))
+	addTemp(regexp.MustCompile(`coretemp_core(?:_)?(\d+)`))
 	// Try k10temp if we didn't find anything
 	if len(tempMap) == 0 {
 		isZen = true
