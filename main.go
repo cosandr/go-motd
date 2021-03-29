@@ -8,11 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosandr/go-motd/datasources"
-	"github.com/cosandr/go-motd/utils"
+	"github.com/alexflint/go-arg"
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/writer"
 	"gopkg.in/yaml.v2"
+
+	"github.com/cosandr/go-motd/datasources"
+	"github.com/cosandr/go-motd/utils"
 )
 
 var (
@@ -241,24 +244,55 @@ func makePrintOrder(c *Conf) (printOrder []string) {
 	return
 }
 
-func main() {
-	var flagUpdates bool
-	var flagDumpCfg bool
-	var flagCfg string
-	// Parse arguments
-	flag.StringVar(&flagCfg, "cfg", defaultCfgPath, "Path to yaml config file")
-	flag.BoolVar(&utils.DebugMode, "debug", false, "Debug mode")
-	flag.BoolVar(&flagUpdates, "updates", false, "Show list of pending updates only")
-	flag.BoolVar(&flagDumpCfg, "dump-config", false, "Dump config to stdout or provided filepath")
-	flag.Parse()
+var args struct {
+	ConfigFile string `arg:"-c,--config,env:CONFIG_FILE" help:"Path to config yaml"`
+	Debug      bool   `arg:"--debug,env:DEBUG" help:"Debug mode"`
+	DumpConfig bool   `arg:"--dump-config" help:"Dump config and exit"`
+	LogLevel   string `arg:"--log.level,env:LOG_LEVEL" default:"WARN" help:"Set log level"`
+	Updates    bool   `arg:"-u,--updates" help:"Show pending updates and exit"`
+	Quiet      bool   `arg:"-q,--quiet" help:"Don't log to console"`
+}
+
+func setupLogging() {
+	var logLevel log.Level
+	var err error
+	getLogLevels := func(level log.Level) []log.Level {
+		ret := make([]log.Level, 0)
+		for _, lvl := range log.AllLevels {
+			if level >= lvl {
+				ret = append(ret, lvl)
+			}
+		}
+		return ret
+	}
 
 	log.SetFormatter(&log.TextFormatter{DisableTimestamp: true})
-	log.SetOutput(os.Stderr)
-	if utils.DebugMode {
-		log.SetLevel(log.DebugLevel)
+	log.SetOutput(ioutil.Discard)
+	if args.Debug {
+		logLevel = log.DebugLevel
 	} else {
-		log.SetLevel(log.WarnLevel)
+		logLevel, err = log.ParseLevel(args.LogLevel)
+		if err != nil {
+			logLevel = log.WarnLevel
+			log.Warnf("Unknown log level %s, defaulting to WARN", args.LogLevel)
+		}
 	}
+	log.SetLevel(logLevel)
+	levels := getLogLevels(logLevel)
+	if !args.Quiet {
+		log.AddHook(&writer.Hook{
+			Writer:    os.Stderr,
+			LogLevels: levels,
+		})
+	}
+}
+
+func main() {
+	args.ConfigFile = defaultCfgPath
+	arg.MustParse(&args)
+	utils.DebugMode = args.Debug
+
+	setupLogging()
 
 	var startTimes map[string]time.Time
 	if utils.DebugMode {
@@ -266,12 +300,12 @@ func main() {
 		startTimes["MAIN"] = time.Now()
 	}
 	// Read config file
-	c, err := readCfg(flagCfg)
+	c, err := readCfg(args.ConfigFile)
 	if err != nil {
 		log.Warn(err)
 	}
 
-	if flagDumpCfg {
+	if args.DumpConfig {
 		log.Info("Dumping config")
 		if flag.NArg() > 0 {
 			dumpConfig(&c, flag.Arg(0))
@@ -283,10 +317,10 @@ func main() {
 
 	var printOrder []string
 
-	if flagUpdates {
+	if args.Updates {
 		log.Debug("Show only updates")
 		// Set show to true
-		c.Updates.Show = &flagUpdates
+		c.Updates.Show = &args.Updates
 		c.Updates.PadHeader = []int{0, 0}
 		// Only show updates
 		printOrder = []string{"updates"}

@@ -11,7 +11,7 @@ The available information will depend on the user privileges, you will need to b
 
 Note that the BTRFS and ZFS space statistics are totals, that is to say, a RAID5 setup shows the used/total space across all drives. For example 3x4TB disks in RAIDZ1 show 10.91TB total, not the usable space which is about 7TB.
 
-You can dump the default config by passing an invalid path as the `-cfg` argument and using `-dump-config` at the same time.
+You can dump the default config by passing an invalid path as the `-c/--config` argument and using `--dump-config` at the same time.
 
 Configuration changed on 2020-05-29, automatic conversion can be done with [migrate.go](./tools/migrate.go). TL;DR of changes:
 - `global` section instead of being root level
@@ -47,7 +47,7 @@ Build and run the binary at shell login. It is likely necessary to provide a con
 Example line in `~/.zshrc`
 
 ```sh
-~/go/bin/go-motd -cfg ~/go/src/github.com/cosandr/go-motd/config.yaml
+~/go/bin/go-motd -c ~/go/src/github.com/cosandr/go-motd/config.yaml
 ```
 
 ## Requirements

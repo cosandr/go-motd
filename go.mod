@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
+	github.com/alexflint/go-arg v1.3.0
 	github.com/containerd/containerd v1.4.3 // indirect
 	github.com/coreos/go-systemd/v22 v22.1.0
 	github.com/cosandr/go-check-updates v0.0.0-20201103134931-43b141cbb606
@@ -22,7 +23,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6 // indirect
 	github.com/shirou/gopsutil/v3 v3.21.1
-	github.com/sirupsen/logrus v1.7.0
+	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/net v0.0.0-20201216054612-986b41b23924 // indirect
 	golang.org/x/sys v0.0.0-20201218084310-7d0127a74742 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect

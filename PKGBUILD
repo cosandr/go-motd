@@ -38,7 +38,7 @@ build() {
     go mod vendor
     go build -a -ldflags "-X main.defaultCfgPath=/${_config_path}" -o "${_pkgname}"
     # Generate default config
-    ./"${_pkgname}" -cfg /dev/null -dump-config "default-config.yaml" > /dev/null
+    ./"${_pkgname}" --config /dev/null --dump-config "default-config.yaml" > /dev/null
 }
 
 package() {
