@@ -19,7 +19,7 @@ type containerList struct {
 	Containers []containerStatus
 }
 
-func (cl *containerList) toHeaderContent(ignoreList []string, warnOnly bool) (header string, content string, err error) {
+func (cl *containerList) toHeaderContent(ignoreList []string, warnOnly bool, padL string, padR string) (header string, content string, err error) {
 	// Make set of ignored containers
 	var ignoreSet utils.StringSet
 	ignoreSet = ignoreSet.FromList(ignoreList)

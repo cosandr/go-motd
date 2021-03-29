@@ -38,7 +38,16 @@ func (c *ConfTempDisk) Init() {
 }
 
 // GetDiskTemps returns disk temperatures using hddtemp daemon or drivetemp kernel driver
-func GetDiskTemps(ret chan<- string, c *ConfTempDisk) {
+func GetDiskTemps(ch chan<- SourceReturn, conf *Conf) {
+	c := conf.Disk
+	// Check for *c.WarnOnly override
+	if c.WarnOnly == nil {
+		c.WarnOnly = &conf.WarnOnly
+	}
+	sr := NewSourceReturn(conf.debug)
+	defer func() {
+		ch <- sr.Return(&c.ConfBase)
+	}()
 	var diskEntries []diskEntry
 	var err error
 	if c.Sys {
@@ -46,38 +55,26 @@ func GetDiskTemps(ret chan<- string, c *ConfTempDisk) {
 	} else {
 		diskEntries, err = getFromHddtemp()
 	}
-	var header string
-	var content string
 	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", padL, padR), utils.Warn("unavailable"))
+		sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", c.padL, c.padR), utils.Warn("unavailable"))
 	} else {
-		header, content, _ = formatDiskEntries(diskEntries, c.Ignore, c.Warn, c.Crit, *c.WarnOnly)
+		sr.Header, sr.Content, sr.Error = formatDiskEntries(diskEntries, &c)
 	}
-	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
-	header = p.Do()
-	if len(content) == 0 {
-		ret <- header
-		return
-	}
-	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
-	content = p.Do()
-	ret <- header + "\n" + content
+	return
 }
 
-func formatDiskEntries(diskEntries []diskEntry, ignoreList []string, warnTemp int, critTemp int, warnOnly bool) (header string, content string, err error) {
+func formatDiskEntries(diskEntries []diskEntry, c *ConfTempDisk) (header string, content string, err error) {
 	var numNotOK uint8
 	var numTotal uint8
 	// Make set of ignored devices
 	var ignoreSet utils.StringSet
-	ignoreSet = ignoreSet.FromList(ignoreList)
+	ignoreSet = ignoreSet.FromList(c.Ignore)
 	for _, entry := range diskEntries {
 		if ignoreSet.Contains(entry.block) {
 			continue
 		}
 		if len(entry.temps) == 0 {
-			content += fmt.Sprintf("%s: %s\n", utils.Wrap(entry.block, padL, padR), utils.Err("--"))
+			content += fmt.Sprintf("%s: %s\n", utils.Wrap(entry.block, c.padL, c.padR), utils.Err("--"))
 			numNotOK++
 			continue
 		}
@@ -87,24 +84,24 @@ func formatDiskEntries(diskEntries []diskEntry, ignoreList []string, warnTemp in
 			if len(t.name) > 0 {
 				diskName += fmt.Sprintf(" - %s", t.name)
 			}
-			if temp < warnTemp && !warnOnly {
-				content += fmt.Sprintf("%s: %s\n", utils.Wrap(diskName, padL, padR), utils.Good(temp))
-			} else if temp >= warnTemp && temp < critTemp {
-				content += fmt.Sprintf("%s: %s\n", utils.Wrap(diskName, padL, padR), utils.Warn(temp))
+			if temp < c.Warn && !*c.WarnOnly {
+				content += fmt.Sprintf("%s: %s\n", utils.Wrap(diskName, c.padL, c.padR), utils.Good(temp))
+			} else if temp >= c.Warn && temp < c.Crit {
+				content += fmt.Sprintf("%s: %s\n", utils.Wrap(diskName, c.padL, c.padR), utils.Warn(temp))
 				numNotOK++
-			} else if temp >= critTemp {
-				content += fmt.Sprintf("%s: %s\n", utils.Wrap(diskName, padL, padR), utils.Err(temp))
+			} else if temp >= c.Crit {
+				content += fmt.Sprintf("%s: %s\n", utils.Wrap(diskName, c.padL, c.padR), utils.Err(temp))
 				numNotOK++
 			}
 			numTotal++
 		}
 	}
 	if numNotOK == 0 {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", padL, padR), utils.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", c.padL, c.padR), utils.Good("OK"))
 	} else if numNotOK < numTotal {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", padL, padR), utils.Warn("Warning"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", c.padL, c.padR), utils.Warn("Warning"))
 	} else {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", padL, padR), utils.Err("Critical"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", c.padL, c.padR), utils.Err("Critical"))
 	}
 	return
 }

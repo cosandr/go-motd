@@ -25,9 +25,16 @@ func (c *ConfPodman) Init() {
 }
 
 // GetPodman podman container status by parsing cli output
-func GetPodman(ret chan<- string, c *ConfPodman) {
-	var header string
-	var content string
+func GetPodman(ch chan<- SourceReturn, conf *Conf) {
+	c := conf.Podman
+	// Check for warnOnly override
+	if c.WarnOnly == nil {
+		c.WarnOnly = &conf.WarnOnly
+	}
+	sr := NewSourceReturn(conf.debug)
+	defer func() {
+		ch <- sr.Return(&c.ConfBase)
+	}()
 	// Check if we are root
 	runningUser, err := user.Current()
 	if err == nil && runningUser.Uid == "0" {
@@ -38,9 +45,9 @@ func GetPodman(ret chan<- string, c *ConfPodman) {
 	if !c.IncludeSudo {
 		cl, err := getContainersExec(true, c.Sudo)
 		if err != nil {
-			header = fmt.Sprintf("%s: %s\n", utils.Wrap("Podman", padL, padR), utils.Warn("unavailable"))
+			sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("Podman", c.padL, c.padR), utils.Warn("unavailable"))
 		} else {
-			header, content, _ = cl.toHeaderContent(c.Ignore, *c.WarnOnly)
+			sr.Header, sr.Content, sr.Error = cl.toHeaderContent(c.Ignore, *c.WarnOnly, c.padL, c.padR)
 		}
 	} else {
 		clUser, errUser := getContainersExec(true, false)
@@ -62,20 +69,10 @@ func GetPodman(ret chan<- string, c *ConfPodman) {
 			})
 		}
 		if len(cl.Containers) == 0 && (errUser != nil || errRoot != nil) {
-			header = fmt.Sprintf("%s: %s\n", utils.Wrap("Podman", padL, padR), utils.Warn("unavailable"))
+			sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("Podman", c.padL, c.padR), utils.Warn("unavailable"))
 		} else {
-			header, content, _ = cl.toHeaderContent(c.Ignore, *c.WarnOnly)
+			sr.Header, sr.Content, sr.Error = cl.toHeaderContent(c.Ignore, *c.WarnOnly, c.padL, c.padR)
 		}
 	}
-	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
-	header = p.Do()
-	if len(content) == 0 {
-		ret <- header
-		return
-	}
-	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
-	content = p.Do()
-	ret <- header + "\n" + content
+	return
 }

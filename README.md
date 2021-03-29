@@ -159,7 +159,7 @@ No extra config
 
 ## Adding more modules
 
-Basic example.go
+Basic datasources/example.go
 
 ```go
 package datasources
@@ -181,41 +181,46 @@ type ConfExample struct {
 
 // Init is mandatory
 func (c *ConfExample) Init() {
-    // Highly recommended to call init on base
+    // Base init must be called
     c.ConfBase.Init()
     // Can change default padding here
     // Set right padding for header to 2 spaces
     c.PadHeader[1] = 2
     // Set other defaults
     c.More = true
+    // Custom padding strings
+    c.padL = "^"
+    c.padR = "&"
 }
 
 
-func GetExample(ret chan<- string, c *ConfExample) {
-  header, content, err := internalFunc(c.More)
-  // Initialize Pad
-  var p = utils.Pad{Delims: map[string]int{examplePadL: c.PadHeader[0], examplePadR: c.PadHeader[1]}, Content: header}
-  // Do() replaces the keys of the `Pad.Delims` map with value amount of spaces
-  // For example `"$": 3` will replace `$` with 3 spaces.
-  header = p.Do()
-  // Repeat for content, reassign p and run p.Do again
-  ret <- header
+func GetExample(ch chan<- SourceReturn, conf *Conf) {
+	c := conf.Example
+	// Optional, but recommended if you use WarnOnly
+	// Check for warnOnly override
+	if c.WarnOnly == nil {
+		c.WarnOnly = &conf.WarnOnly
+	}
+	sr := NewSourceReturn(conf.debug)
+	defer func() {
+		ch <- sr.Return(&c.ConfBase)
+	}()
+    sr.Header, sr.Content, sr.Error = internalFunc(&c)
+    return
 }
 
-func internalFunc(more bool) (header string, content string, err error) {}
+func internalFunc(c *ConfExample) (header string, content string, err error) {
+	// Remember to use c.padL/c.padR when preparing header and content
+	header = fmt.Sprintf("%s: %s\n", utils.Wrap("Example", c.padL, c.padR), utils.Good("OK"))
+	return
+}
 ```
 
-Modify main.go
-
+Update common_vars.go
 ```go
-package main
-
-// Add your module to defaultOrder
-var defaultOrder = []string{..., "example"}
-
 type Conf struct {
   // Add your type to the Conf struct
-  Example datasources.ConfExample
+  Example ConfExample
 }
 
 // Update Init()
@@ -225,23 +230,18 @@ func (c *Conf) Init() {
   c.Example.Init()
 }
 
-// Create Get method
-func getExample(ret chan<- string, c Conf, endTime chan<- time.Time) {
-  // You may do default checking here, see getZFS as an example
-  datasources.GetExample(ret, &c.Module)
-  endTime <- time.Now()
-}
+// Add to a case to run your function in RunSources
+case "example":
+    go GetExample(ch, c)
+```
 
-// Add to main
-func main() {
-  // Add a case for it
-  for _, k := range printOrder {
-    switch k {
-    case "example":
-      go getExample(outCh[k], c, endTimes[k])
-    }
-  }
-}
+Modify main.go (optional)
+
+```go
+package main
+
+// Add your module to defaultOrder
+var defaultOrder = []string{..., "example"}
 ```
 
 You may also add an entry to `config.yaml`, this will override what you have set in `Init()`.
@@ -250,4 +250,3 @@ You may also add an entry to `config.yaml`, this will override what you have set
 
 - Log to file
 - Dumb terminal option
-- Do something if update cache is out of date

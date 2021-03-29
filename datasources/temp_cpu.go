@@ -5,9 +5,10 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/cosandr/go-motd/utils"
 	"github.com/shirou/gopsutil/v3/host"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/cosandr/go-motd/utils"
 )
 
 // ConfTempCPU extends ConfBase with a list of containers to ignore
@@ -24,9 +25,16 @@ func (c *ConfTempCPU) Init() {
 }
 
 // GetCPUTemp returns CPU core temps using gopsutil or parsing sensors output
-func GetCPUTemp(ret chan<- string, c *ConfTempCPU) {
-	var header string
-	var content string
+func GetCPUTemp(ch chan<- SourceReturn, conf *Conf) {
+	c := conf.CPU
+	// Check for warnOnly override
+	if c.WarnOnly == nil {
+		c.WarnOnly = &conf.WarnOnly
+	}
+	sr := NewSourceReturn(conf.debug)
+	defer func() {
+		ch <- sr.Return(&c.ConfBase)
+	}()
 	var tempMap map[string]int
 	var isZen bool
 	var err error
@@ -39,24 +47,14 @@ func GetCPUTemp(ret chan<- string, c *ConfTempCPU) {
 		log.Warnf("[cpu] temperature read error: %v", err)
 	}
 	if len(tempMap) == 0 {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("unavailable"))
+		sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", c.padL, c.padR), utils.Warn("unavailable"))
 	} else {
-		header, content, _ = formatCPUTemps(tempMap, isZen, c.Warn, c.Crit, *c.WarnOnly)
+		sr.Header, sr.Content, sr.Error = formatCPUTemps(tempMap, isZen, &c)
 	}
-	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
-	header = p.Do()
-	if len(content) == 0 {
-		ret <- header
-		return
-	}
-	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
-	content = p.Do()
-	ret <- header + "\n" + content
+	return
 }
 
-func formatCPUTemps(tempMap map[string]int, isZen bool, warnTemp int, critTemp int, warnOnly bool) (header string, content string, err error) {
+func formatCPUTemps(tempMap map[string]int, isZen bool, c *ConfTempCPU) (header string, content string, err error) {
 	// Sort keys
 	sortedNames := make([]string, len(tempMap))
 	i := 0
@@ -71,27 +69,27 @@ func formatCPUTemps(tempMap map[string]int, isZen bool, warnTemp int, critTemp i
 		v := tempMap[k]
 		var wrapped string
 		if !isZen {
-			wrapped = utils.Wrap(fmt.Sprintf("Core %s", k), padL, padR)
+			wrapped = utils.Wrap(fmt.Sprintf("Core %s", k), c.padL, c.padR)
 		} else {
-			wrapped = utils.Wrap(k, padL, padR)
+			wrapped = utils.Wrap(k, c.padL, c.padR)
 		}
-		if v < warnTemp && !warnOnly {
+		if v < c.Warn && !*c.WarnOnly {
 			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Good(v))
-		} else if v >= warnTemp && v < critTemp {
+		} else if v >= c.Warn && v < c.Crit {
 			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Warn(v))
 			warnCount++
-		} else if v >= critTemp {
+		} else if v >= c.Crit {
 			warnCount++
 			errCount++
 			content += fmt.Sprintf("%s: %s\n", wrapped, utils.Err(v))
 		}
 	}
 	if warnCount == 0 {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", c.padL, c.padR), utils.Good("OK"))
 	} else if errCount > 0 {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Err("Critical"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", c.padL, c.padR), utils.Err("Critical"))
 	} else if warnCount > 0 {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", padL, padR), utils.Warn("Warning"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", c.padL, c.padR), utils.Warn("Warning"))
 	}
 	return
 }

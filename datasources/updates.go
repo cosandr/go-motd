@@ -33,6 +33,7 @@ type ConfUpdates struct {
 
 // Init sets default alignment and default socket file
 func (c *ConfUpdates) Init() {
+	c.ConfBase.Init()
 	c.PadHeader = []int{0, 2}
 	c.PadContent = []int{1, 0}
 	c.Address = "/run/go-check-updates.sock"
@@ -40,29 +41,26 @@ func (c *ConfUpdates) Init() {
 }
 
 // GetUpdates reads cached updates file and formats it
-func GetUpdates(ret chan<- string, c *ConfUpdates) {
-	var header string
-	var content string
+func GetUpdates(ch chan<- SourceReturn, conf *Conf) {
+	c := conf.Updates
+	// Check for warnOnly override
+	if c.Show == nil {
+		c.Show = &conf.WarnOnly
+	}
+	sr := NewSourceReturn(conf.debug)
+	defer func() {
+		ch <- sr.Return(&c.ConfBase)
+	}()
 	if c.File != "" {
-		header, content, _ = getUpdatesFile(c)
+		sr.Header, sr.Content, sr.Error = getUpdatesFile(&c)
 	} else {
-		header, content, _ = getUpdatesAPI(c)
+		sr.Header, sr.Content, sr.Error = getUpdatesAPI(&c)
 	}
-	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
-	header = p.Do()
-	if len(content) == 0 {
-		ret <- header
-		return
-	}
-	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
-	content = p.Do()
-	ret <- header + "\n" + content
+	return
 }
 
 // getUpdatesResponse connects to go-check-updates at addr and returns the result
-func getUpdatesResponse(addr string, url string) (header string, result api.Response, err error) {
+func getUpdatesResponse(addr string, url string, padL string, padR string) (header string, result api.Response, err error) {
 	var client http.Client
 	var connType string
 	log.Debugf("[updates] request URL: %s", url)
@@ -110,7 +108,7 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 	if c.Every != "" {
 		reqURL += fmt.Sprintf("&refresh&immediate&every=%s", c.Every)
 	}
-	header, r, err = getUpdatesResponse(c.Address, reqURL)
+	header, r, err = getUpdatesResponse(c.Address, reqURL, c.padL, c.padR)
 	if err != nil {
 		return
 	}
@@ -120,28 +118,28 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 	}
 	if r.Queued != nil && *r.Queued == true {
 		if r.Data == nil {
-			header = fmt.Sprintf("%s: No data, refreshing\n", utils.Wrap("Updates", padL, padR))
+			header = fmt.Sprintf("%s: No data, refreshing\n", utils.Wrap("Updates", c.padL, c.padR))
 		} else {
-			header = fmt.Sprintf("%s: %d pending, refreshing\n", utils.Wrap("Updates", padL, padR), len(r.Data.Updates))
+			header = fmt.Sprintf("%s: %d pending, refreshing\n", utils.Wrap("Updates", c.padL, c.padR), len(r.Data.Updates))
 		}
 	} else {
 		if r.Data == nil {
-			header = fmt.Sprintf("%s: No data\n", utils.Wrap("Updates", padL, padR))
+			header = fmt.Sprintf("%s: No data\n", utils.Wrap("Updates", c.padL, c.padR))
 			return
 		}
 		t, err := time.Parse(time.RFC3339, r.Data.Checked)
 		if err != nil {
 			log.Warnf("[updates] cannot parse timestamp %s: %v", r.Data.Checked, err)
-			header = fmt.Sprintf("%s: %d pending, cannot parse timestamp\n", utils.Wrap("Updates", padL, padR), len(r.Data.Updates))
+			header = fmt.Sprintf("%s: %d pending, cannot parse timestamp\n", utils.Wrap("Updates", c.padL, c.padR), len(r.Data.Updates))
 		}
 		var timeElapsed = time.Since(t)
 		header = fmt.Sprintf("%s: %d pending, checked %s ago\n",
-			utils.Wrap("Updates", padL, padR), len(r.Data.Updates), timeStr(timeElapsed, 2, c.ShortNames))
+			utils.Wrap("Updates", c.padL, c.padR), len(r.Data.Updates), timeStr(timeElapsed, 2, c.ShortNames))
 	}
 	if r.Data == nil || c.Show == nil || *c.Show == false {
 		return
 	}
-	content += fmt.Sprint(utils.Wrap(r.Data.String(), padL, padR))
+	content += fmt.Sprint(utils.Wrap(r.Data.String(), c.padL, c.padR))
 	return
 }
 
@@ -158,17 +156,17 @@ func readUpdatesCache(cacheFp string) (parsed api.File, err error) {
 func getUpdatesFile(c *ConfUpdates) (header string, content string, err error) {
 	data, err := readUpdatesCache(c.File)
 	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Updates", padL, padR), utils.Warn("unavailable"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Updates", c.padL, c.padR), utils.Warn("unavailable"))
 		content = fmt.Sprint(err)
 		return
 	}
 	t, _ := time.Parse(time.RFC3339, data.Checked)
 	var timeElapsed = time.Since(t)
 	header = fmt.Sprintf("%s: %d pending, checked %s ago\n",
-		utils.Wrap("Updates", padL, padR), len(data.Updates), timeStr(timeElapsed, 2, c.ShortNames))
+		utils.Wrap("Updates", c.padL, c.padR), len(data.Updates), timeStr(timeElapsed, 2, c.ShortNames))
 	if c.Show == nil || *c.Show == false {
 		return
 	}
-	content += fmt.Sprint(utils.Wrap(data.String(), padL, padR))
+	content += fmt.Sprint(utils.Wrap(data.String(), c.padL, c.padR))
 	return
 }

@@ -11,9 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cosandr/go-motd/utils"
 	"github.com/shirou/gopsutil/v3/disk"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/cosandr/go-motd/utils"
 )
 
 // ConfBtrfs is the configuration for btrfs data
@@ -36,9 +37,16 @@ func (c *ConfBtrfs) Init() {
 }
 
 // GetBtrfs gets btrfs filesystem used and total space by reading files in /sys
-func GetBtrfs(ret chan<- string, c *ConfBtrfs) {
-	var header string
-	var content string
+func GetBtrfs(ch chan<- SourceReturn, conf *Conf) {
+	c := conf.BTRFS
+	// Check for warnOnly override
+	if c.WarnOnly == nil {
+		c.WarnOnly = &conf.WarnOnly
+	}
+	sr := NewSourceReturn(conf.debug)
+	defer func() {
+		ch <- sr.Return(&c.ConfBase)
+	}()
 	if c.Exec {
 		// Check if we are root
 		runningUser, err := user.Current()
@@ -55,24 +63,14 @@ func GetBtrfs(ret chan<- string, c *ConfBtrfs) {
 		if c.Sudo {
 			cmd = "sudo " + cmd
 		}
-		header, content, _ = getBtrfsStatusExec(cmd, c.Warn, c.Crit, *c.WarnOnly, c.ShowFree)
-	} else {
-		header, content, _ = getBtrfsStatus(c.Warn, c.Crit, *c.WarnOnly, c.ShowFree)
-	}
-	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
-	header = p.Do()
-	if len(content) == 0 {
-		ret <- header
+		sr.Header, sr.Content, sr.Error = getBtrfsStatusExec(cmd, &c)
 		return
 	}
-	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
-	content = p.Do()
-	ret <- header + "\n" + content
+	sr.Header, sr.Content, sr.Error = getBtrfsStatus(&c)
+	return
 }
 
-func getBtrfsStatusExec(cmd string, warnUsage int, critUsage int, warnOnly bool, showFree bool) (header string, content string, err error) {
+func getBtrfsStatusExec(cmd string, c *ConfBtrfs) (header string, content string, err error) {
 	// Find all btrfs mounts
 	parts, err := disk.Partitions(false)
 	if err != nil {
@@ -96,11 +94,11 @@ func getBtrfsStatusExec(cmd string, warnUsage int, critUsage int, warnOnly bool,
 			checked[p.Device] = empty
 			log.Debugf("btrfs: device %s mounted at %s", p.Device, p.Mountpoint)
 			tmp := append(args, p.Mountpoint)
-			c := exec.Command(tmp[0], tmp[1:]...)
-			log.Debugf("btrfs: exec: '%s'", c.String())
+			command := exec.Command(tmp[0], tmp[1:]...)
+			log.Debugf("btrfs: exec: '%s'", command.String())
 			var buf bytes.Buffer
-			c.Stdout = &buf
-			cErr := c.Run()
+			command.Stdout = &buf
+			cErr := command.Run()
 			if cErr != nil {
 				log.Warnf("btrfs: cannot get usage for %s: %v", p.Mountpoint, cErr)
 				continue
@@ -149,35 +147,35 @@ func getBtrfsStatusExec(cmd string, warnUsage int, critUsage int, warnOnly bool,
 			usedPerc := int((1 - (freeBytes / totalBytes)) * 100)
 			totalStr := utils.FormatBytes(totalBytes)
 			var firstStr string
-			if showFree {
+			if c.ShowFree {
 				firstStr = utils.FormatBytes(freeBytes) + " free"
 			} else {
 				firstStr = utils.FormatBytes(totalBytes-freeBytes) + " used"
 			}
-			if usedPerc < warnUsage && !warnOnly {
-				content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(p.Mountpoint, padL, padR), firstStr, totalStr)
-			} else if usedPerc >= warnUsage && usedPerc < critUsage {
+			if usedPerc < c.Warn && !*c.WarnOnly {
+				content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(p.Mountpoint, c.padL, c.padR), firstStr, totalStr)
+			} else if usedPerc >= c.Warn && usedPerc < c.Crit {
 				if status != 'e' {
 					status = 'w'
 				}
-				content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(p.Mountpoint, padL, padR), firstStr, totalStr)
-			} else if usedPerc >= critUsage {
+				content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(p.Mountpoint, c.padL, c.padR), firstStr, totalStr)
+			} else if usedPerc >= c.Crit {
 				status = 'e'
-				content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(p.Mountpoint, padL, padR), firstStr, totalStr)
+				content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(p.Mountpoint, c.padL, c.padR), firstStr, totalStr)
 			}
 		}
 	}
 	if status == 'o' {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", padL, padR), utils.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", c.padL, c.padR), utils.Good("OK"))
 	} else if status == 'w' {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", padL, padR), utils.Warn("Warning"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", c.padL, c.padR), utils.Warn("Warning"))
 	} else {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", padL, padR), utils.Err("Critical"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", c.padL, c.padR), utils.Err("Critical"))
 	}
 	return
 }
 
-func getBtrfsStatus(warnUsage int, critUsage int, warnOnly bool, showFree bool) (header string, content string, err error) {
+func getBtrfsStatus(c *ConfBtrfs) (header string, content string, err error) {
 	matches, err := filepath.Glob("/sys/fs/btrfs/*-*")
 	if err != nil {
 		return
@@ -186,9 +184,9 @@ func getBtrfsStatus(warnUsage int, critUsage int, warnOnly bool, showFree bool) 
 	for _, fs := range matches {
 		// Get FS label
 		var label string
-		c, _ := ioutil.ReadFile(filepath.Join(fs, "/label"))
-		if c != nil {
-			label = strings.TrimSpace(string(c))
+		read, _ := ioutil.ReadFile(filepath.Join(fs, "/label"))
+		if read != nil {
+			label = strings.TrimSpace(string(read))
 		} else {
 			label = "Unlabelled"
 		}
@@ -209,35 +207,35 @@ func getBtrfsStatus(warnUsage int, critUsage int, warnOnly bool, showFree bool) 
 		}
 
 		if usedBytes <= 0 || totalBytes <= 0 {
-			content += fmt.Sprintf("%s: %s\n", utils.Wrap(label, padL, padR), utils.Err("read error"))
+			content += fmt.Sprintf("%s: %s\n", utils.Wrap(label, c.padL, c.padR), utils.Err("read error"))
 			continue
 		}
 		totalStr = utils.FormatBytes(totalBytes)
 		usedPerc = int((usedBytes / totalBytes) * 100)
 		var firstStr string
-		if showFree {
+		if c.ShowFree {
 			firstStr = utils.FormatBytes(totalBytes-usedBytes) + " free"
 		} else {
 			firstStr = utils.FormatBytes(usedBytes) + " used"
 		}
-		if usedPerc < warnUsage && !warnOnly {
-			content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(label, padL, padR), firstStr, totalStr)
-		} else if usedPerc >= warnUsage && usedPerc < critUsage {
+		if usedPerc < c.Warn && !*c.WarnOnly {
+			content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(label, c.padL, c.padR), firstStr, totalStr)
+		} else if usedPerc >= c.Warn && usedPerc < c.Crit {
 			if status != 'e' {
 				status = 'w'
 			}
-			content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(label, padL, padR), firstStr, totalStr)
-		} else if usedPerc >= critUsage {
+			content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(label, c.padL, c.padR), firstStr, totalStr)
+		} else if usedPerc >= c.Crit {
 			status = 'e'
-			content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(label, padL, padR), firstStr, totalStr)
+			content += fmt.Sprintf("%s: %s out of %s\n", utils.Wrap(label, c.padL, c.padR), firstStr, totalStr)
 		}
 	}
 	if status == 'o' {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", padL, padR), utils.Good("OK"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", c.padL, c.padR), utils.Good("OK"))
 	} else if status == 'w' {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", padL, padR), utils.Warn("Warning"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", c.padL, c.padR), utils.Warn("Warning"))
 	} else {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", padL, padR), utils.Err("Critical"))
+		header = fmt.Sprintf("%s: %s\n", utils.Wrap("BTRFS", c.padL, c.padR), utils.Err("Critical"))
 	}
 	return
 }

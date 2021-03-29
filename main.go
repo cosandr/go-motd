@@ -15,148 +15,12 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/cosandr/go-motd/datasources"
-	"github.com/cosandr/go-motd/utils"
 )
 
 var (
 	defaultCfgPath = "./config.yaml"
 	defaultOrder   = []string{"sysinfo", "updates", "systemd", "docker", "podman", "disk", "cpu", "zfs", "btrfs"}
 )
-
-// ConfGlobal is the config struct for global settings
-type ConfGlobal struct {
-	// Hide fields which are deemed to be OK
-	WarnOnly bool `yaml:"warnings_only"`
-	// Order in which to display data sources
-	ShowOrder []string `yaml:"show_order,flow,omitempty"`
-	// Define how data sources are displayed
-	ColDef [][]string `yaml:"col_def,flow,omitempty"`
-	// Padding between columns when using col_def
-	ColPad int `yaml:"col_pad"`
-}
-
-// Conf is the combined config struct, defines YAML file
-type Conf struct {
-	ConfGlobal `yaml:"global"`
-	BTRFS      datasources.ConfBtrfs    `yaml:"btrfs"`
-	CPU        datasources.ConfTempCPU  `yaml:"cpu"`
-	Disk       datasources.ConfTempDisk `yaml:"disk"`
-	Docker     datasources.ConfDocker   `yaml:"docker"`
-	Podman     datasources.ConfPodman   `yaml:"podman"`
-	SysInfo    datasources.ConfSysInfo  `yaml:"sysinfo"`
-	Systemd    datasources.ConfSystemd  `yaml:"systemd"`
-	Updates    datasources.ConfUpdates  `yaml:"updates"`
-	ZFS        datasources.ConfZFS      `yaml:"zfs"`
-}
-
-// Init a config with sane default values
-func (c *Conf) Init() {
-	// Set global defaults
-	c.WarnOnly = true
-	c.ColPad = 4
-	// Init data source configs
-	c.BTRFS.Init()
-	c.CPU.Init()
-	c.Disk.Init()
-	c.Docker.Init()
-	c.Podman.Init()
-	c.SysInfo.Init()
-	c.Systemd.Init()
-	c.Updates.Init()
-	c.ZFS.Init()
-}
-
-func readCfg(path string) (c Conf, err error) {
-	c.Init()
-	yamlFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		err = fmt.Errorf("config file error: %v ", err)
-		return
-	}
-	err = yaml.Unmarshal(yamlFile, &c)
-	if err != nil {
-		err = fmt.Errorf("cannot parse %s: %v", path, err)
-		return
-	}
-	return
-}
-
-func getBtrfs(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for warnOnly override
-	if c.BTRFS.WarnOnly == nil {
-		c.BTRFS.WarnOnly = &c.WarnOnly
-	}
-	datasources.GetBtrfs(ret, &c.BTRFS)
-	endTime <- time.Now()
-}
-
-func getCPUTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for warnOnly override
-	if c.CPU.WarnOnly == nil {
-		c.CPU.WarnOnly = &c.WarnOnly
-	}
-	datasources.GetCPUTemp(ret, &c.CPU)
-	endTime <- time.Now()
-}
-
-func getDiskTemp(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for warnOnly override
-	if c.Disk.WarnOnly == nil {
-		c.Disk.WarnOnly = &c.WarnOnly
-	}
-	datasources.GetDiskTemps(ret, &c.Disk)
-	endTime <- time.Now()
-}
-
-func getDocker(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for warnOnly override
-	if c.Docker.WarnOnly == nil {
-		c.Docker.WarnOnly = &c.WarnOnly
-	}
-	datasources.GetDocker(ret, &c.Docker)
-	endTime <- time.Now()
-}
-
-func getPodman(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for warnOnly override
-	if c.Podman.WarnOnly == nil {
-		c.Podman.WarnOnly = &c.WarnOnly
-	}
-	datasources.GetPodman(ret, &c.Podman)
-	endTime <- time.Now()
-}
-
-func getSysInfo(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	datasources.GetSysInfo(ret, &c.SysInfo)
-	endTime <- time.Now()
-}
-
-func getSystemD(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for warnOnly override
-	if c.Systemd.WarnOnly == nil {
-		c.Systemd.WarnOnly = &c.WarnOnly
-	}
-	datasources.GetSystemd(ret, &c.Systemd)
-	endTime <- time.Now()
-}
-
-func getUpdates(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for warnOnly override
-	if c.Updates.Show == nil {
-		c.Updates.Show = &c.WarnOnly
-	}
-	datasources.GetUpdates(ret, &c.Updates)
-	endTime <- time.Now()
-}
-
-func getZFS(ret chan<- string, c Conf, endTime chan<- time.Time) {
-	// Check for warnOnly override
-	if c.ZFS.WarnOnly == nil {
-		c.ZFS.WarnOnly = &c.WarnOnly
-	}
-	datasources.GetZFS(ret, &c.ZFS)
-	endTime <- time.Now()
-}
 
 func makeTable(buf *strings.Builder, padding int) (table *tablewriter.Table) {
 	table = tablewriter.NewWriter(buf)
@@ -204,40 +68,21 @@ func mapToTable(inStr map[string]string, colDef [][]string, buf *strings.Builder
 }
 
 // makePrintOrder flattens colDef (if present). If showOrder is defined as well, it is ignored.
-// The list of modules in either of them must be defined in defaultOrder or they will be ignored.
-// This function removes invalid modules from c.ColDef
-func makePrintOrder(c *Conf) (printOrder []string) {
-	var tmp []string
-	var verifiedCols [][]string
-	var checkSet utils.StringSet
-	checkSet = checkSet.FromList(defaultOrder)
+func makePrintOrder(c *datasources.Conf) (printOrder []string) {
+	if args.Updates {
+		return []string{"updates"}
+	}
 	if len(c.ColDef) > 0 {
 		// Flatten 2-dim input
 		for _, row := range c.ColDef {
-			tmp = nil
 			for _, k := range row {
-				if checkSet.Contains(k) {
-					printOrder = append(printOrder, k)
-					tmp = append(tmp, k)
-				} else {
-					log.Warnf("Unknown module %s", k)
-				}
-			}
-			if tmp != nil {
-				verifiedCols = append(verifiedCols, tmp)
-			}
-		}
-		c.ColDef = verifiedCols
-	} else if len(c.ShowOrder) > 0 {
-		for _, k := range c.ShowOrder {
-			if checkSet.Contains(k) {
 				printOrder = append(printOrder, k)
-			} else {
-				log.Warnf("Unknown module %s", k)
 			}
 		}
+	} else if len(c.ShowOrder) > 0 {
+		printOrder = c.ShowOrder
 	} else {
-		// No need to check if using defaults
+		// Use default order
 		printOrder = make([]string, len(defaultOrder))
 		copy(printOrder, defaultOrder)
 	}
@@ -290,17 +135,15 @@ func setupLogging() {
 func main() {
 	args.ConfigFile = defaultCfgPath
 	arg.MustParse(&args)
-	utils.DebugMode = args.Debug
 
 	setupLogging()
 
-	var startTimes map[string]time.Time
-	if utils.DebugMode {
-		startTimes = make(map[string]time.Time)
-		startTimes["MAIN"] = time.Now()
+	var mainStart time.Time
+	if args.Debug {
+		mainStart = time.Now()
 	}
 	// Read config file
-	c, err := readCfg(args.ConfigFile)
+	c, err := datasources.NewConfFromFile(args.ConfigFile, args.Debug)
 	if err != nil {
 		log.Warn(err)
 	}
@@ -315,66 +158,28 @@ func main() {
 		return
 	}
 
-	var printOrder []string
-
 	if args.Updates {
 		log.Debug("Show only updates")
 		// Set show to true
 		c.Updates.Show = &args.Updates
 		c.Updates.PadHeader = []int{0, 0}
-		// Only show updates
-		printOrder = []string{"updates"}
-	} else {
-		// Flatten colDef and check for invalid module names
-		printOrder = makePrintOrder(&c)
 	}
 
-	var endTimes = make(map[string]chan time.Time)
-	endTimes["MAIN"] = make(chan time.Time, 1)
-	// Generate output string channels
-	var outCh = make(map[string]chan string)
-	for _, k := range printOrder {
-		outCh[k] = make(chan string, 1)
-		if utils.DebugMode {
-			endTimes[k] = make(chan time.Time, 1)
-		}
-	}
-
-	log.Debug("Start data collection goroutines")
-	for _, k := range printOrder {
-		if utils.DebugMode {
-			startTimes[k] = time.Now()
-		}
-		switch k {
-		case "btrfs":
-			go getBtrfs(outCh[k], c, endTimes[k])
-		case "cpu":
-			go getCPUTemp(outCh[k], c, endTimes[k])
-		case "disk":
-			go getDiskTemp(outCh[k], c, endTimes[k])
-		case "docker":
-			go getDocker(outCh[k], c, endTimes[k])
-		case "podman":
-			go getPodman(outCh[k], c, endTimes[k])
-		case "sysinfo":
-			go getSysInfo(outCh[k], c, endTimes[k])
-		case "systemd":
-			go getSystemD(outCh[k], c, endTimes[k])
-		case "updates":
-			go getUpdates(outCh[k], c, endTimes[k])
-		case "zfs":
-			go getZFS(outCh[k], c, endTimes[k])
-		default:
-			// Critical failure
-			log.Panicf("no case for %s", k)
-		}
-	}
-
-	var outStr = make(map[string]string)
+	outOrder, outData := datasources.RunSources(makePrintOrder(&c), &c)
+	outStr := make(map[string]string)
 	// Wait and print results
-	log.Debug("Wait for goroutines")
-	for _, k := range printOrder {
-		outStr[k] = <-outCh[k]
+	for _, k := range outOrder {
+		v, ok := outData[k]
+		if !ok {
+			continue
+		}
+		outStr[k] = v.Header
+		if v.Content != "" {
+			outStr[k] += "\n" + v.Content
+		}
+		if v.Error != nil {
+			log.Warnf("%s error: %v", k, v.Error)
+		}
 	}
 	if len(c.ColDef) > 0 {
 		log.Debug("Format as table")
@@ -383,21 +188,22 @@ func main() {
 		fmt.Print(outBuf.String())
 	} else {
 		log.Debug("Print as is")
-		for _, k := range printOrder {
+		for _, k := range outOrder {
 			fmt.Println(outStr[k])
 		}
 	}
 	// Show timing results
-	if utils.DebugMode {
-		endTimes["MAIN"] <- time.Now()
-		printOrder = append(printOrder, "MAIN")
-		for _, k := range printOrder {
-			log.Debugf("%s ran in: %s\n", k, (<-endTimes[k]).Sub(startTimes[k]).String())
+	if args.Debug {
+		times := make(map[string]time.Duration)
+		times["MAIN"] = time.Now().Sub(mainStart)
+		outOrder = append(outOrder, "MAIN")
+		for _, k := range outOrder {
+			log.Debugf("%s ran in: %s", k, outData[k].Time.String())
 		}
 	}
 }
 
-func dumpConfig(c *Conf, writeFile string) {
+func dumpConfig(c *datasources.Conf, writeFile string) {
 	d, err := yaml.Marshal(c)
 	if err != nil {
 		log.Errorf("Config parse error: %v", err)

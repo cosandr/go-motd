@@ -19,13 +19,18 @@ type ConfSysInfo struct {
 }
 
 func (c *ConfSysInfo) Init() {
+	c.ConfBase.Init()
 	c.PadHeader = []int{0, 3}
 	c.PadContent = []int{0, 0}
 }
 
 // GetSysInfo various stats about the host Linux OS (kernel, distro, load and more)
-func GetSysInfo(ret chan<- string, c *ConfSysInfo) {
-	var header string
+func GetSysInfo(ch chan<- SourceReturn, conf *Conf) {
+	c := conf.SysInfo
+	sr := NewSourceReturn(conf.debug)
+	defer func() {
+		ch <- sr.Return(&c.ConfBase)
+	}()
 	type entry struct {
 		name    string
 		content string
@@ -39,12 +44,9 @@ func GetSysInfo(ret chan<- string, c *ConfSysInfo) {
 		{"RAM", getMemoryInfo()},
 	}
 	for _, e := range info {
-		header += fmt.Sprintf("%s: %s\n", utils.Wrap(e.name, padL, padR), e.content)
+		sr.Header += fmt.Sprintf("%s: %s\n", utils.Wrap(e.name, c.padL, c.padR), e.content)
 	}
-	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
-	header = p.Do()
-	ret <- header
+	return
 }
 
 // runCmd executes command and returns stdout as string

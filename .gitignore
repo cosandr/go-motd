@@ -8,4 +8,4 @@ vendor
 tools/*.toml
 tools/*.yaml
 tools/tools
-build
+build/

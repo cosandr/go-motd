@@ -5,11 +5,6 @@ import (
 	"fmt"
 )
 
-var (
-	// DebugMode enables debug messages across modules
-	DebugMode bool
-)
-
 const (
 	tebibyte float64 = 1099511627776
 	gibibyte float64 = 1073741824

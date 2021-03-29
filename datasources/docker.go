@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cosandr/go-motd/utils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+
+	"github.com/cosandr/go-motd/utils"
 )
 
 const (
@@ -30,32 +31,29 @@ func (c *ConfDocker) Init() {
 }
 
 // GetDocker docker container status using the API
-func GetDocker(ret chan<- string, c *ConfDocker) {
+func GetDocker(ch chan<- SourceReturn, conf *Conf) {
+	c := conf.Docker
+	// Check for warnOnly override
+	if c.WarnOnly == nil {
+		c.WarnOnly = &conf.WarnOnly
+	}
+	sr := NewSourceReturn(conf.debug)
+	defer func() {
+		ch <- sr.Return(&c.ConfBase)
+	}()
 	var err error
 	var cl containerList
-	var header string
-	var content string
 	if c.Exec {
 		cl, err = getContainersExec(false, false)
 	} else {
 		cl, err = getDockerContainers()
 	}
 	if err != nil {
-		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Docker", padL, padR), utils.Warn("unavailable"))
+		sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("Docker", c.padL, c.padR), utils.Warn("unavailable"))
 	} else {
-		header, content, _ = cl.toHeaderContent(c.Ignore, *c.WarnOnly)
+		sr.Header, sr.Content, sr.Error = cl.toHeaderContent(c.Ignore, *c.WarnOnly, c.padL, c.padR)
 	}
-	// Pad header
-	var p = utils.Pad{Delims: map[string]int{padL: c.PadHeader[0], padR: c.PadHeader[1]}, Content: header}
-	header = p.Do()
-	if len(content) == 0 {
-		ret <- header
-		return
-	}
-	// Pad container list
-	p = utils.Pad{Delims: map[string]int{padL: c.PadContent[0], padR: c.PadContent[1]}, Content: content}
-	content = p.Do()
-	ret <- header + "\n" + content
+	return
 }
 
 func getDockerContainers() (cl containerList, err error) {
