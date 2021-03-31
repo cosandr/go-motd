@@ -56,6 +56,7 @@ func GetDiskTemps(ch chan<- SourceReturn, conf *Conf) {
 		diskEntries, err = getFromHddtemp()
 	}
 	if err != nil {
+		err = &ModuleNotAvailable{"disk", err}
 		sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("Disk temp", c.padL, c.padR), utils.Warn("unavailable"))
 	} else {
 		sr.Header, sr.Content, sr.Error = formatDiskEntries(diskEntries, &c)

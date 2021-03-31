@@ -38,7 +38,7 @@ func makeTable(buf *strings.Builder, padding int) (table *tablewriter.Table) {
 	return
 }
 
-func mapToTable(inStr map[string]string, colDef [][]string, buf *strings.Builder, padding int) {
+func mapToTable(buf *strings.Builder, inStr map[string]string, colDef [][]string, padding int) {
 	table := makeTable(buf, padding)
 	var tmp []string
 	// Render a new table every row for compact output
@@ -50,7 +50,7 @@ func mapToTable(inStr map[string]string, colDef [][]string, buf *strings.Builder
 			if !ok {
 				continue
 			}
-			fmt.Fprintln(buf, a)
+			_, _ = fmt.Fprintln(buf, a)
 			continue
 		}
 		tmp = nil
@@ -91,13 +91,14 @@ func makePrintOrder(c *datasources.Conf) (printOrder []string) {
 }
 
 var args struct {
-	ConfigFile string `arg:"-c,--config,env:CONFIG_FILE" help:"Path to config yaml"`
-	Debug      bool   `arg:"--debug,env:DEBUG" help:"Debug mode"`
-	DumpConfig bool   `arg:"--dump-config" help:"Dump config and exit"`
-	LogLevel   string `arg:"--log.level,env:LOG_LEVEL" default:"WARN" help:"Set log level"`
-	NoColors   bool   `arg:"--no-colors,env:NO_COLORS" help:"Disable colors"`
-	Quiet      bool   `arg:"-q,--quiet" help:"Don't log to console"`
-	Updates    bool   `arg:"-u,--updates" help:"Show pending updates and exit"`
+	ConfigFile      string `arg:"-c,--config,env:CONFIG_FILE" help:"Path to config yaml"`
+	Debug           bool   `arg:"--debug,env:DEBUG" help:"Debug mode"`
+	DumpConfig      bool   `arg:"--dump-config" help:"Dump config and exit"`
+	LogLevel        string `arg:"--log.level,env:LOG_LEVEL" default:"WARN" help:"Set log level"`
+	NoColors        bool   `arg:"--no-colors,env:NO_COLORS" help:"Disable colors"`
+	HideUnavailable bool   `arg:"--hide-unavailable,env:HIDE_UNAVAILABLE" help:"Hide unavailable modules"`
+	Quiet           bool   `arg:"-q,--quiet" help:"Don't log to console"`
+	Updates         bool   `arg:"-u,--updates" help:"Show pending updates and exit"`
 }
 
 func setupLogging() {
@@ -172,31 +173,35 @@ func main() {
 
 	outOrder, outData := datasources.RunSources(makePrintOrder(&c), &c)
 	outStr := make(map[string]string)
-	// Wait and print results
+	// Wait and save results
 	for _, k := range outOrder {
 		v, ok := outData[k]
 		if !ok {
 			continue
 		}
-		outStr[k] = v.Header
-		if v.Content != "" {
-			outStr[k] += "\n" + v.Content
+		// Check if we should skip due to unavailable error
+		if _, unOK := v.Error.(datasources.UnavailableError); unOK && args.HideUnavailable {
+			continue
 		}
 		if v.Error != nil {
 			log.Warnf("%s error: %v", k, v.Error)
 		}
+		outStr[k] = v.Header
+		if v.Content != "" {
+			outStr[k] += "\n" + v.Content
+		}
 	}
+	outBuf := &strings.Builder{}
 	if len(c.ColDef) > 0 {
 		log.Debug("Format as table")
-		outBuf := &strings.Builder{}
-		mapToTable(outStr, c.ColDef, outBuf, c.ColPad)
-		fmt.Print(outBuf.String())
+		mapToTable(outBuf, outStr, c.ColDef, c.ColPad)
 	} else {
 		log.Debug("Print as is")
 		for _, k := range outOrder {
-			fmt.Println(outStr[k])
+			_, _ = fmt.Fprintln(outBuf, outStr[k])
 		}
 	}
+	fmt.Print(outBuf.String())
 	// Show timing results
 	if args.Debug {
 		times := make(map[string]time.Duration)

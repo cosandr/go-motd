@@ -74,6 +74,7 @@ func getBtrfsStatusExec(cmd string, c *ConfBtrfs) (header string, content string
 	// Find all btrfs mounts
 	parts, err := disk.Partitions(false)
 	if err != nil {
+		err = &ModuleNotAvailable{"btrfs", err}
 		return
 	}
 	checked := make(map[string]struct{})
@@ -178,6 +179,7 @@ func getBtrfsStatusExec(cmd string, c *ConfBtrfs) (header string, content string
 func getBtrfsStatus(c *ConfBtrfs) (header string, content string, err error) {
 	matches, err := filepath.Glob("/sys/fs/btrfs/*-*")
 	if err != nil {
+		err = &ModuleNotAvailable{"btrfs", err}
 		return
 	}
 	var status = 'o'

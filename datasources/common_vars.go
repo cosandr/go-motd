@@ -13,6 +13,22 @@ import (
 	"github.com/cosandr/go-motd/utils"
 )
 
+type UnavailableError interface {
+	error
+	UnavailableError()
+}
+
+type ModuleNotAvailable struct {
+	Name        string
+	ParentError error
+}
+
+func (m *ModuleNotAvailable) Error() string {
+	return "module " + m.Name + " is not available: " + m.ParentError.Error()
+}
+
+func (ModuleNotAvailable) UnavailableError() {}
+
 // SourceReturn is the data returned by a datasource through a channel
 type SourceReturn struct {
 	// Datasource output header string

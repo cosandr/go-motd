@@ -46,6 +46,7 @@ func getPoolStatus(c *ConfZFS) (header string, content string, err error) {
 	err = cmd.Run()
 	if err != nil {
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("ZFS", c.padL, c.padR), utils.Warn("unavailable"))
+		err = &ModuleNotAvailable{"zfs", err}
 		return
 	}
 	var status = 'o'

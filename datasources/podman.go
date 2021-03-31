@@ -45,6 +45,7 @@ func GetPodman(ch chan<- SourceReturn, conf *Conf) {
 	if !c.IncludeSudo {
 		cl, err := getContainersExec(true, c.Sudo)
 		if err != nil {
+			err = &ModuleNotAvailable{"podman", err}
 			sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("Podman", c.padL, c.padR), utils.Warn("unavailable"))
 		} else {
 			sr.Header, sr.Content, sr.Error = cl.toHeaderContent(c.Ignore, *c.WarnOnly, c.padL, c.padR)
@@ -69,6 +70,7 @@ func GetPodman(ch chan<- SourceReturn, conf *Conf) {
 			})
 		}
 		if len(cl.Containers) == 0 && (errUser != nil || errRoot != nil) {
+			err = &ModuleNotAvailable{"podman", err}
 			sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("Podman", c.padL, c.padR), utils.Warn("unavailable"))
 		} else {
 			sr.Header, sr.Content, sr.Error = cl.toHeaderContent(c.Ignore, *c.WarnOnly, c.padL, c.padR)

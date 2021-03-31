@@ -49,6 +49,7 @@ func GetDocker(ch chan<- SourceReturn, conf *Conf) {
 		cl, err = getDockerContainers()
 	}
 	if err != nil {
+		err = &ModuleNotAvailable{"docker", err}
 		sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("Docker", c.padL, c.padR), utils.Warn("unavailable"))
 	} else {
 		sr.Header, sr.Content, sr.Error = cl.toHeaderContent(c.Ignore, *c.WarnOnly, c.padL, c.padR)

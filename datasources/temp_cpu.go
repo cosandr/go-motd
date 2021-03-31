@@ -47,6 +47,7 @@ func GetCPUTemp(ch chan<- SourceReturn, conf *Conf) {
 		log.Warnf("[cpu] temperature read error: %v", err)
 	}
 	if len(tempMap) == 0 {
+		err = &ModuleNotAvailable{"cpu", err}
 		sr.Header = fmt.Sprintf("%s: %s\n", utils.Wrap("CPU temp", c.padL, c.padR), utils.Warn("unavailable"))
 	} else {
 		sr.Header, sr.Content, sr.Error = formatCPUTemps(tempMap, isZen, &c)

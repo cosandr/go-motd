@@ -81,20 +81,20 @@ func getUpdatesResponse(addr string, url string, padL string, padR string) (head
 	}
 	resp, err := client.Get(url)
 	if err != nil {
-		log.Warnf("[updates] connection failed %v", err)
+		err = &ModuleNotAvailable{"updates", err}
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Updates", padL, padR), utils.Warn("unavailable"))
 		return
 	}
 	defer resp.Body.Close()
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
-		log.Warnf("[updates] cannot decode response %v", err)
+		err = &ModuleNotAvailable{"updates", err}
 		header = fmt.Sprintf("%s: %s (%v)\n", utils.Wrap("Updates", padL, padR), utils.Warn("Cannot decode response"), err)
 		return
 	}
 	log.Debugf("[updates] response:\n%s", utils.PrettyPrint(&result))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		log.Warnf("[updates] invalid response code %s", resp.Status)
+		err = &ModuleNotAvailable{"updates", fmt.Errorf("invalid response code %s", resp.Status)}
 		header = fmt.Sprintf("%s: %s (%s)\n", utils.Wrap("Updates", padL, padR), utils.Warn("Invalid response"), resp.Status)
 		return
 	}
@@ -156,8 +156,8 @@ func readUpdatesCache(cacheFp string) (parsed api.File, err error) {
 func getUpdatesFile(c *ConfUpdates) (header string, content string, err error) {
 	data, err := readUpdatesCache(c.File)
 	if err != nil {
+		err = &ModuleNotAvailable{"updates", err}
 		header = fmt.Sprintf("%s: %s\n", utils.Wrap("Updates", c.padL, c.padR), utils.Warn("unavailable"))
-		content = fmt.Sprint(err)
 		return
 	}
 	t, _ := time.Parse(time.RFC3339, data.Checked)
