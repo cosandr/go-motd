@@ -38,11 +38,23 @@ build() {
     go mod vendor
     go build -a -ldflags "-X main.defaultCfgPath=/${_config_path}" -o "${_pkgname}"
     # Generate default config
-    ./"${_pkgname}" --config /dev/null --dump-config "default-config.yaml" > /dev/null
+    ./"${_pkgname}" --config /dev/null --dump-config > "default-config.yaml" 2> /dev/null
+    # Generate systemd unit file
+    cat > "${_pkgname}".service <<EOF
+[Unit]
+Description=Go MOTD generator
+
+[Service]
+PIDFile=/run/${_pkgname}.pid
+ExecReload=/usr/bin/kill -s HUP \$MAINPID
+ExecStart=/usr/bin/${_pkgname} --daemon --pid /run/${_pkgname}.pid --output /etc/motd
+EOF
 }
 
 package() {
     cd "${_pkgname}"
+    install -dm 755 "${pkgdir}/etc/systemd/system"
+    install -Dm 644 "${_pkgname}".service "${pkgdir}/etc/systemd/system"
     install -dm 755 "${pkgdir}/etc/${_pkgname}"
     install -Dm 644 "default-config.yaml" "${pkgdir}/${_config_path}"
     install -Dm 755 "${_pkgname}" "${pkgdir}/usr/bin/${_pkgname}"

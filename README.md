@@ -29,6 +29,14 @@ Configuration changed on 2020-05-29, automatic conversion can be done with [migr
 
 ![go-motd-warn](https://user-images.githubusercontent.com/7095687/71813465-f5215580-3079-11ea-809d-05f661614679.jpg)
 
+## Requirements
+
+- Kernel 5.6+ (drivetemp module) or hddtemp daemon are required for disk temps
+- `dockerMinAPI` in [docker.go](./datasources/docker.go) might need tweaking
+- `zfs-utils` for zpool status
+- [go-check-updates](https://github.com/cosandr/go-check-updates) for updates
+- `lm_sensors` for CPU temperatures
+
 ## Installation
 
 ### Arch Linux
@@ -38,25 +46,52 @@ wget https://raw.githubusercontent.com/cosandr/go-motd/master/PKGBUILD
 makepkg -si
 ```
 
-`go-motd` will use the config file in `/etc/go-motd/config.yaml`, you probably want to run it at shell login.
+`go-motd` will use the config file in `/etc/go-motd/config.yaml`.
 
 ### Generic
 
-Build and run the binary at shell login. It is likely necessary to provide a config path, by default it must be in the same directory as the binary.
-
-Example line in `~/.zshrc`
-
 ```sh
-~/go/bin/go-motd -c ~/go/src/github.com/cosandr/go-motd/config.yaml
+# Clone repository and cd to it
+git clone https://github.com/cosandr/go-motd
+cd go-motd
+## Manual installation
+go mod vendor
+go build -a -ldflags "-X main.defaultCfgPath=/etc/go-motd/config.yaml"
+# Generate default config
+sudo ./go-motd --config /dev/null --dump-config > "default-config.yaml" 2> /dev/null
+# Install binary
+sudo install -m 755 go-motd /usr/bin/
+## Using setup.sh
+sudo ./setup.sh install
 ```
 
-## Requirements
+## Running
 
-- Kernel 5.6+ (drivetemp module) or hddtemp daemon are required for disk temps
-- `dockerMinAPI` in [docker.go](./datasources/docker.go) might need tweaking
-- `zfs-utils` for zpool status
-- [go-check-updates](https://github.com/cosandr/go-check-updates) for updates
-- `lm_sensors` for CPU temperatures
+Two modes of operations, running directly or
+as a daemon writing to a file at fixed intervals and triggered by SIGHUP.
+
+### Direct run at login
+
+Assuming it was installed as outlined above, just run the binary by adding `go-motd` in your shell rc file.
+
+### Daemon mode
+
+Recommended usage is running with systemd and pointing `go-motd` at `/etc/motd`.
+
+```
+[Unit]
+Description=Go MOTD generator
+
+[Service]
+PIDFile=/run/go-motd.pid
+ExecReload=/usr/bin/kill -s HUP $MAINPID
+ExecStart=/usr/bin/go-motd --daemon --pid /run/go-motd.pid --output /etc/motd
+```
+
+If it's not showing up, you can add `[[ -s /etc/motd ]] && cat /etc/motd` to your shell rc file.
+
+A refresh can be forced by issuing a SIGHUP to the process, either with `systemctl reload go-motd.service` or
+`kill -HUP $(cat /run/go-motd.pid)`
 
 ## Configuration
 
@@ -64,7 +99,7 @@ Example line in `~/.zshrc`
 
 - `warnings_only` will hide content unless there is a warning, per-module override available
 - `show_order` list of enabled modules, they will be displayed in the same order. If not defined, the order in [defaultOrder](./motd.go#L18) will be used.
-- `col_def` arrange module ouput in columns as defined by a 2-dimensional array, configuration for example pictures shown below. Note that this overrides `show_order`.
+- `col_def` arrange module output in columns as defined by a 2-dimensional array, configuration for example pictures shown below. Note that this overrides `show_order`.
 
 ```yaml
 col_def:
@@ -210,6 +245,7 @@ func GetExample(ch chan<- SourceReturn, conf *Conf) {
 }
 
 func internalFunc(c *ConfExample) (header string, content string, err error) {
+	// You should return a ModuleNotAvailable error if it is appropriate.
 	// Remember to use c.padL/c.padR when preparing header and content
 	header = fmt.Sprintf("%s: %s\n", utils.Wrap("Example", c.padL, c.padR), utils.Good("OK"))
 	return
