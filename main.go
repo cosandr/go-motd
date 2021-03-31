@@ -94,9 +94,10 @@ var args struct {
 	ConfigFile      string `arg:"-c,--config,env:CONFIG_FILE" help:"Path to config yaml"`
 	Debug           bool   `arg:"--debug,env:DEBUG" help:"Debug mode"`
 	DumpConfig      bool   `arg:"--dump-config" help:"Dump config and exit"`
+	HideUnavailable bool   `arg:"--hide-unavailable,env:HIDE_UNAVAILABLE" help:"Hide unavailable modules"`
 	LogLevel        string `arg:"--log.level,env:LOG_LEVEL" default:"WARN" help:"Set log level"`
 	NoColors        bool   `arg:"--no-colors,env:NO_COLORS" help:"Disable colors"`
-	HideUnavailable bool   `arg:"--hide-unavailable,env:HIDE_UNAVAILABLE" help:"Hide unavailable modules"`
+	Output          string `arg:"-o,--output,env:OUTPUT" help:"Write output to file instead of stdout"`
 	Quiet           bool   `arg:"-q,--quiet" help:"Don't log to console"`
 	Updates         bool   `arg:"-u,--updates" help:"Show pending updates and exit"`
 }
@@ -201,7 +202,14 @@ func main() {
 			_, _ = fmt.Fprintln(outBuf, outStr[k])
 		}
 	}
-	fmt.Print(outBuf.String())
+	if args.Output != "" {
+		err = ioutil.WriteFile(args.Output, []byte(outBuf.String()), 0644)
+		if err != nil {
+			log.Error(err)
+		}
+	} else {
+		fmt.Print(outBuf.String())
+	}
 	// Show timing results
 	if args.Debug {
 		times := make(map[string]time.Duration)
