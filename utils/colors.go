@@ -3,9 +3,10 @@ package utils
 import "fmt"
 
 var (
-	Good = green
-	Warn = yellow
-	Err  = red
+	Good     = green
+	Warn     = yellow
+	Err      = red
+	NoColors = false
 )
 
 var (
@@ -21,6 +22,9 @@ var (
 
 func Color(colorString string) func(...interface{}) string {
 	sprint := func(args ...interface{}) string {
+		if NoColors {
+			return fmt.Sprint(args...)
+		}
 		return fmt.Sprintf(colorString,
 			fmt.Sprint(args...))
 	}

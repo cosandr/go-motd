@@ -245,8 +245,3 @@ var defaultOrder = []string{..., "example"}
 ```
 
 You may also add an entry to `config.yaml`, this will override what you have set in `Init()`.
-
-## Todo
-
-- Log to file
-- Dumb terminal option

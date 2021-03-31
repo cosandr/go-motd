@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/cosandr/go-motd/datasources"
+	"github.com/cosandr/go-motd/utils"
 )
 
 var (
@@ -94,8 +95,9 @@ var args struct {
 	Debug      bool   `arg:"--debug,env:DEBUG" help:"Debug mode"`
 	DumpConfig bool   `arg:"--dump-config" help:"Dump config and exit"`
 	LogLevel   string `arg:"--log.level,env:LOG_LEVEL" default:"WARN" help:"Set log level"`
-	Updates    bool   `arg:"-u,--updates" help:"Show pending updates and exit"`
+	NoColors   bool   `arg:"--no-colors,env:NO_COLORS" help:"Disable colors"`
 	Quiet      bool   `arg:"-q,--quiet" help:"Don't log to console"`
+	Updates    bool   `arg:"-u,--updates" help:"Show pending updates and exit"`
 }
 
 func setupLogging() {
@@ -141,6 +143,9 @@ func main() {
 	var mainStart time.Time
 	if args.Debug {
 		mainStart = time.Now()
+	}
+	if args.NoColors {
+		utils.NoColors = true
 	}
 	// Read config file
 	c, err := datasources.NewConfFromFile(args.ConfigFile, args.Debug)
