@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 
 	"github.com/cosandr/go-motd/utils"
@@ -63,7 +63,7 @@ func getDockerContainers() (cl containerList, err error) {
 		return
 	}
 
-	allContainers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	allContainers, err := cli.ContainerList(context.Background(), container.ListOptions{All: true})
 	if err != nil {
 		return
 	}
