@@ -76,5 +76,4 @@ func GetPodman(ch chan<- SourceReturn, conf *Conf) {
 			sr.Header, sr.Content, sr.Error = cl.toHeaderContent(c.Ignore, *c.WarnOnly, c.padL, c.padR)
 		}
 	}
-	return
 }

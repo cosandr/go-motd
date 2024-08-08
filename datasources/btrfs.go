@@ -67,7 +67,6 @@ func GetBtrfs(ch chan<- SourceReturn, conf *Conf) {
 		return
 	}
 	sr.Header, sr.Content, sr.Error = getBtrfsStatus(&c)
-	return
 }
 
 func getBtrfsStatusExec(cmd string, c *ConfBtrfs) (header string, content string, err error) {

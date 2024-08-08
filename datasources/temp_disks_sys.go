@@ -36,7 +36,7 @@ func getFromSys() (deviceList []diskEntry, err error) {
 		} else {
 			model = string(content)
 		}
-		hwmonFiles, err := filepath.Glob(hwmonBaseDir + "/hwmon*/temp*_*")
+		hwmonFiles, _ := filepath.Glob(hwmonBaseDir + "/hwmon*/temp*_*")
 		temps := readHwmonFiles(hwmonFiles)
 		deviceList = append(deviceList, diskEntry{
 			block: file.Name(),

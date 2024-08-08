@@ -88,7 +88,6 @@ func GetSystemd(ch chan<- SourceReturn, conf *Conf) {
 		ch <- sr.Return(&c.ConfBase)
 	}()
 	sr.Header, sr.Content, sr.Error = getServiceStatus(&c)
-	return
 }
 
 // getServiceStatus get service properties

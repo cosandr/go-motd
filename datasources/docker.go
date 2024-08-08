@@ -54,7 +54,6 @@ func GetDocker(ch chan<- SourceReturn, conf *Conf) {
 	} else {
 		sr.Header, sr.Content, sr.Error = cl.toHeaderContent(c.Ignore, *c.WarnOnly, c.padL, c.padR)
 	}
-	return
 }
 
 func getDockerContainers() (cl containerList, err error) {

@@ -36,7 +36,6 @@ func GetZFS(ch chan<- SourceReturn, conf *Conf) {
 		ch <- sr.Return(&c.ConfBase)
 	}()
 	sr.Header, sr.Content, sr.Error = getPoolStatus(&c)
-	return
 }
 
 func getPoolStatus(c *ConfZFS) (header string, content string, err error) {

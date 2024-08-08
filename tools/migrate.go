@@ -39,7 +39,6 @@ func dumpCfgOld(c *OldConf, writeFile string) {
 	} else {
 		fmt.Printf("%s\n", string(d))
 	}
-	return
 }
 
 func dumpCfg(c *Conf, writeFile string) {
@@ -58,7 +57,6 @@ func dumpCfg(c *Conf, writeFile string) {
 	} else {
 		fmt.Printf("%s\n", string(d))
 	}
-	return
 }
 
 func readCfg(path string) (c Conf, err error) {

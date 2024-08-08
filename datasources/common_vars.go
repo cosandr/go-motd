@@ -45,7 +45,7 @@ type SourceReturn struct {
 
 func (sr *SourceReturn) Return(c *ConfBase) SourceReturn {
 	if !sr.start.IsZero() {
-		sr.Time = time.Now().Sub(sr.start)
+		sr.Time = time.Since(sr.start)
 	}
 	sr.MaybePad(c)
 	return *sr

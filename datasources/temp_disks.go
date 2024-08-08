@@ -61,7 +61,6 @@ func GetDiskTemps(ch chan<- SourceReturn, conf *Conf) {
 	} else {
 		sr.Header, sr.Content, sr.Error = formatDiskEntries(diskEntries, &c)
 	}
-	return
 }
 
 func formatDiskEntries(diskEntries []diskEntry, c *ConfTempDisk) (header string, content string, err error) {

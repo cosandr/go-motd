@@ -56,7 +56,6 @@ func GetUpdates(ch chan<- SourceReturn, conf *Conf) {
 	} else {
 		sr.Header, sr.Content, sr.Error = getUpdatesAPI(&c)
 	}
-	return
 }
 
 // getUpdatesResponse connects to go-check-updates at addr and returns the result
@@ -116,7 +115,7 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 		log.Warnf("[updates] response contains error %s", r.Error)
 		content = fmt.Sprintf("%s\n", utils.Warn(r.Error))
 	}
-	if r.Queued != nil && *r.Queued == true {
+	if r.Queued != nil && *r.Queued {
 		if r.Data == nil {
 			header = fmt.Sprintf("%s: No data, refreshing\n", utils.Wrap("Updates", c.padL, c.padR))
 		} else {
@@ -131,12 +130,13 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 		if err != nil {
 			log.Warnf("[updates] cannot parse timestamp %s: %v", r.Data.Checked, err)
 			header = fmt.Sprintf("%s: %d pending, cannot parse timestamp\n", utils.Wrap("Updates", c.padL, c.padR), len(r.Data.Updates))
+			return header, content, err
 		}
 		var timeElapsed = time.Since(t)
 		header = fmt.Sprintf("%s: %d pending, checked %s ago\n",
 			utils.Wrap("Updates", c.padL, c.padR), len(r.Data.Updates), timeStr(timeElapsed, 2, c.ShortNames))
 	}
-	if r.Data == nil || c.Show == nil || *c.Show == false {
+	if r.Data == nil || c.Show == nil || !*c.Show {
 		return
 	}
 	content += fmt.Sprint(utils.Wrap(r.Data.String(), c.padL, c.padR))
@@ -164,7 +164,7 @@ func getUpdatesFile(c *ConfUpdates) (header string, content string, err error) {
 	var timeElapsed = time.Since(t)
 	header = fmt.Sprintf("%s: %d pending, checked %s ago\n",
 		utils.Wrap("Updates", c.padL, c.padR), len(data.Updates), timeStr(timeElapsed, 2, c.ShortNames))
-	if c.Show == nil || *c.Show == false {
+	if c.Show == nil || !*c.Show {
 		return
 	}
 	content += fmt.Sprint(utils.Wrap(data.String(), c.padL, c.padR))

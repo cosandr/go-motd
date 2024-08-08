@@ -52,7 +52,6 @@ func GetCPUTemp(ch chan<- SourceReturn, conf *Conf) {
 	} else {
 		sr.Header, sr.Content, sr.Error = formatCPUTemps(tempMap, isZen, &c)
 	}
-	return
 }
 
 func formatCPUTemps(tempMap map[string]int, isZen bool, c *ConfTempCPU) (header string, content string, err error) {

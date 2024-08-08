@@ -46,7 +46,6 @@ func GetSysInfo(ch chan<- SourceReturn, conf *Conf) {
 	for _, e := range info {
 		sr.Header += fmt.Sprintf("%s: %s\n", utils.Wrap(e.name, c.padL, c.padR), e.content)
 	}
-	return
 }
 
 // runCmd executes command and returns stdout as string
