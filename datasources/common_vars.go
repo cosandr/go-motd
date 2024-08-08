@@ -2,7 +2,7 @@ package datasources
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -168,7 +168,7 @@ func (c *Conf) Init() {
 func NewConfFromFile(path string, debug bool) (c Conf, err error) {
 	c.Init()
 	c.debug = debug
-	yamlFile, errF := ioutil.ReadFile(path)
+	yamlFile, errF := os.ReadFile(path)
 	if errF != nil {
 		err = fmt.Errorf("config file error: %v ", err)
 		return

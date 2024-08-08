@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -145,7 +145,7 @@ func getUpdatesAPI(c *ConfUpdates) (header string, content string, err error) {
 
 // readUpdatesCache reads the cache file from the given path
 func readUpdatesCache(cacheFp string) (parsed api.File, err error) {
-	fb, err := ioutil.ReadFile(cacheFp)
+	fb, err := os.ReadFile(cacheFp)
 	if err != nil {
 		return
 	}

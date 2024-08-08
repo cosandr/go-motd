@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -100,7 +99,7 @@ func getUptime() string {
 }
 
 func getLoadAvg() string {
-	loadavg, err := ioutil.ReadFile("/proc/loadavg")
+	loadavg, err := os.ReadFile("/proc/loadavg")
 	if err != nil {
 		return utils.Warn("unavailable")
 	}

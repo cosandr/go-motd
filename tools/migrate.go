@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -10,7 +9,7 @@ import (
 
 func readCfgOld(path string) (c OldConf, err error) {
 	c.Init()
-	yamlFile, err := ioutil.ReadFile(path)
+	yamlFile, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("config file error: %v ", err)
 		return
@@ -30,7 +29,7 @@ func dumpCfgOld(c *OldConf, writeFile string) {
 		return
 	}
 	if writeFile != "" {
-		err = ioutil.WriteFile(writeFile, d, 0644)
+		err = os.WriteFile(writeFile, d, 0644)
 		if err != nil {
 			fmt.Printf("Config dumped failed: %v\n", err)
 			return
@@ -48,7 +47,7 @@ func dumpCfg(c *Conf, writeFile string) {
 		return
 	}
 	if writeFile != "" && writeFile != "--" {
-		err = ioutil.WriteFile(writeFile, d, 0644)
+		err = os.WriteFile(writeFile, d, 0644)
 		if err != nil {
 			fmt.Printf("Config dumped failed: %v\n", err)
 			return
@@ -61,7 +60,7 @@ func dumpCfg(c *Conf, writeFile string) {
 
 func readCfg(path string) (c Conf, err error) {
 	c.Init()
-	yamlFile, err := ioutil.ReadFile(path)
+	yamlFile, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("config file error: %v ", err)
 		return

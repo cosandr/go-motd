@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -127,7 +127,7 @@ func setupLogging() {
 	}
 
 	log.SetFormatter(&log.TextFormatter{DisableTimestamp: true})
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	if args.Debug {
 		logLevel = log.DebugLevel
 	} else if args.LogLevel != "" {
@@ -181,7 +181,7 @@ func runModules(c *datasources.Conf) {
 		}
 	}
 	if args.Output != "" {
-		err := ioutil.WriteFile(args.Output, []byte(outBuf.String()), 0644)
+		err := os.WriteFile(args.Output, []byte(outBuf.String()), 0644)
 		if err != nil {
 			log.Error(err)
 		}
@@ -200,7 +200,7 @@ func runDaemon(c *datasources.Conf) {
 	if args.PID == "-" {
 		log.Infof("PID: %d", os.Getpid())
 	} else if args.PID != "" {
-		err := ioutil.WriteFile(args.PID, []byte(fmt.Sprint(os.Getpid())), 0644)
+		err := os.WriteFile(args.PID, []byte(fmt.Sprint(os.Getpid())), 0644)
 		if err != nil {
 			log.Errorf("cannot write PID: %v", err)
 		}
@@ -306,7 +306,7 @@ func dumpConfig(c *datasources.Conf, writeFile string) {
 		return
 	}
 	if writeFile != "" {
-		err = ioutil.WriteFile(writeFile, d, 0644)
+		err = os.WriteFile(writeFile, d, 0644)
 		if err != nil {
 			log.Errorf("Config dumped failed: %v", err)
 			return

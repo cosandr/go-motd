@@ -1,7 +1,7 @@
 package datasources
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,7 +13,7 @@ func getFromSys() (deviceList []diskEntry, err error) {
 	// Temp (SCSI):  /sys/block/sda/device/hwmon/hwmon3/temp1_input
 	// Model (NVMe): /sys/block/nvme0n1/device/model
 	// Temp (NVMe):  /sys/block/nvme0n1/device/device/hwmon/hwmon1/temp1_input
-	blockDevices, err := ioutil.ReadDir("/sys/block")
+	blockDevices, err := os.ReadDir("/sys/block")
 	if err != nil {
 		return
 	}
@@ -28,7 +28,7 @@ func getFromSys() (deviceList []diskEntry, err error) {
 		} else {
 			continue
 		}
-		content, err := ioutil.ReadFile(filepath.Join(devicePath, "/model"))
+		content, err := os.ReadFile(filepath.Join(devicePath, "/model"))
 		if err != nil {
 			model = "N/A"
 			// Suppress error
@@ -58,13 +58,13 @@ func readHwmonFiles(files []string) (temps []diskTemp) {
 
 		// Get the label of the temperature you are reading
 		var label string
-		c, _ := ioutil.ReadFile(filepath.Join(filepath.Dir(file), filename[0]+"_label"))
+		c, _ := os.ReadFile(filepath.Join(filepath.Dir(file), filename[0]+"_label"))
 		if c != nil {
 			label = strings.Join(strings.Split(strings.TrimSpace(strings.ToLower(string(c))), " "), "")
 		}
 
 		// Get the temperature reading
-		current, err := ioutil.ReadFile(file)
+		current, err := os.ReadFile(file)
 		if err != nil {
 			continue
 		}

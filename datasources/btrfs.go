@@ -3,7 +3,7 @@ package datasources
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
@@ -185,7 +185,7 @@ func getBtrfsStatus(c *ConfBtrfs) (header string, content string, err error) {
 	for _, fs := range matches {
 		// Get FS label
 		var label string
-		read, _ := ioutil.ReadFile(filepath.Join(fs, "/label"))
+		read, _ := os.ReadFile(filepath.Join(fs, "/label"))
 		if read != nil {
 			label = strings.TrimSpace(string(read))
 		} else {
@@ -242,7 +242,7 @@ func getBtrfsStatus(c *ConfBtrfs) (header string, content string, err error) {
 }
 
 func readFloatFile(file string) float64 {
-	readBytes, err := ioutil.ReadFile(file)
+	readBytes, err := os.ReadFile(file)
 	if err != nil {
 		return 0
 	}
